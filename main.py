@@ -1,5 +1,6 @@
 import argparse
 import configparser
+from GAN2Shape.trainer import Trainer
 
 
 def main():
@@ -15,6 +16,8 @@ def main():
     config.read(args.CONFIG)
 
     # set configuration
+    trainer = Trainer(n_epochs=1)
+    trainer.fit()
 
 
 if __name__ == "__main__":
