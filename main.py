@@ -1,22 +1,21 @@
 import argparse
-import configparser
+import yaml
 from GAN2Shape.trainer import Trainer
-
+from GAN2Shape.model import GAN2Shape
 
 def main():
     parser = argparse.ArgumentParser(description='Run a GAN 2D to 3D shape')
     parser.add_argument('--config-file',
                         dest='CONFIG',
-                        default='config.ini',
-                        help='path of the config file')
+                        default='config.yml',
+                        help='path of the config yaml file')
     args = parser.parse_args()
 
     # read configuration
-    config = configparser.ConfigParser()
-    config.read(args.CONFIG)
+    config = yaml.safe_load(args.CONFIG)
 
     # set configuration
-    trainer = Trainer(n_epochs=1)
+    trainer = Trainer(model=GAN2Shape, model_config=config)
     trainer.fit()
 
 

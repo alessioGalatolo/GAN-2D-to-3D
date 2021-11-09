@@ -1,19 +1,19 @@
 import torch
 import tqdm
-from GAN2Shape.stylegan2 import StyleGAN2
 
 
 class Trainer():
     def __init__(self,
-                 n_epochs,
+                 model,
+                 model_config,
                  device='auto'):
 
-        self.n_epochs = n_epochs
         self.device = device
         if device == 'auto':
             device_name = 'cuda:0' if torch.cuda.is_available() else 'cpu'
             self.device = torch.device(device_name)
-        self.model = StyleGAN2(10, 20)
+        self.model = model(model_config)
+        self.n_epochs = model_config.get('n_epochs', 1)
 
         # TODO: init things
         self.trainloader = None
