@@ -1,5 +1,5 @@
 import torch
-import tqdm
+from tqdm import tqdm
 
 
 class Trainer():
@@ -21,7 +21,8 @@ class Trainer():
         self.testloader = None
         self.loss = None
 
-    def fit(self, optimizer):
+    def fit(self):
+        self.model.init_optimizers()
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):
             running_loss = 0.0
@@ -29,16 +30,10 @@ class Trainer():
                 inputs, labels = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-                # zero the parameter gradients
-                optimizer.zero_grad()
+                m = self.model.forward()
+                self.model.backward()
 
-                # forward + backward + optimize
-                outputs = self.model(inputs)
-                loss = self.loss(outputs, labels)
-                loss.backward()
-                optimizer.step()
-
-                running_loss += loss.item()
+                running_loss += m
 
             print('Loss: {}'.format(running_loss))
 
