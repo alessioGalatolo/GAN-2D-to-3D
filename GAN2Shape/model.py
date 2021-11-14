@@ -1,8 +1,7 @@
-# FIXME: This is a placeholder for the stylegan implementation
-
 import torch
 import torch.nn as nn
 from .stylegan2 import Generator, Discriminator
+import networks
 
 
 class GAN2Shape(nn.Module):
@@ -20,6 +19,11 @@ class GAN2Shape(nn.Module):
         self.discriminator.load_state_dict(gan_ckpt['d'], strict=False)
         self.discriminator = self.discriminator.cuda()
         self.discriminator.eval()
+
+        self.lighting_net = networks.LightingNet(self.image_size)
+        self.viewpoint_net = networks.ViewpointNet(self.image_size)
+        self.depth_net = networks.DepthNet(self.image_size)
+        self.albedo_net = networks.AlbedoNet(self.image_size)
 
     def init_optimizers(self):
         pass
