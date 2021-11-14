@@ -212,7 +212,7 @@ torch::Tensor upfirdn2d_op(const torch::Tensor &input,
                            int pad_y0, int pad_y1) {
   int curDevice = -1;
   cudaGetDevice(&curDevice);
-  cudaStream_t stream = at::cuda::getCurrentCUDAStream(curDevice);
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
   UpFirDn2DKernelParams p;
 
@@ -312,56 +312,56 @@ torch::Tensor upfirdn2d_op(const torch::Tensor &input,
     switch (mode) {
     case 1:
       upfirdn2d_kernel<scalar_t, 1, 1, 1, 1, 4, 4, 16, 64>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     case 2:
       upfirdn2d_kernel<scalar_t, 1, 1, 1, 1, 3, 3, 16, 64>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     case 3:
       upfirdn2d_kernel<scalar_t, 2, 2, 1, 1, 4, 4, 16, 64>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     case 4:
       upfirdn2d_kernel<scalar_t, 2, 2, 1, 1, 2, 2, 16, 64>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     case 5:
       upfirdn2d_kernel<scalar_t, 1, 1, 2, 2, 4, 4, 8, 32>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     case 6:
       upfirdn2d_kernel<scalar_t, 1, 1, 2, 2, 4, 4, 8, 32>
-          <<<grid_size, block_size, 0, stream>>>(out.data<scalar_t>(),
-                                                 x.data<scalar_t>(),
-                                                 k.data<scalar_t>(), p);
+          <<<grid_size, block_size, 0, stream>>>(out.data_ptr<scalar_t>(),
+                                                 x.data_ptr<scalar_t>(),
+                                                 k.data_ptr<scalar_t>(), p);
 
       break;
 
     default:
       upfirdn2d_kernel_large<scalar_t><<<grid_size, block_size, 0, stream>>>(
-          out.data<scalar_t>(), x.data<scalar_t>(),
-          k.data<scalar_t>(), p);
+          out.data_ptr<scalar_t>(), x.data_ptr<scalar_t>(),
+          k.data_ptr<scalar_t>(), p);
     }
   });
 
