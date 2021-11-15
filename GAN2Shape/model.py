@@ -25,6 +25,8 @@ class GAN2Shape(nn.Module):
         self.depth_net = networks.DepthNet(self.image_size)
         self.albedo_net = networks.AlbedoNet(self.image_size)
 
+        self.offset_encoder_net = networks.OffsetEncoder(self.image_size)
+        
     def init_optimizers(self):
         pass
 

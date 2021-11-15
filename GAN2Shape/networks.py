@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.modules import activation
 
 
 """
@@ -179,33 +180,36 @@ class OffsetEncoder(nn.Module):
     See Table 7 in arxiv/2011.00844.
     """
 
-    def __init__(self, cin, cout, resolution=128):
+    def __init__(self, image_size=128, cin=3, cout=512, activation=None):
         super().__init__()
-        resolutions=[64,128]
-        assert(resolution in resolutions)
+        allowed_sizes=[64,128]
+        assert(image_size in allowed_sizes)
+        nf=16 #should this be an input param?
 
         network_part1=[
-            nn.Conv2d(cin,cout, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1), #the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
             nn.ReLU(),
-            ResBlock(32,64),
-            ResBlock(64,128),
-            ResBlock(128,256)]
+            ResBlock(2*nf,4*nf),
+            ResBlock(4*nf,8*nf),
+            ResBlock(8*nf,16*nf)]
 
-        if resolution==128:
+        if image_size==128:
             network_part2=[
-                ResBlock(256,512),
-                nn.Conv2d(512,1024, kernel_size=4, stride=1, padding=0),
+                ResBlock(16*nf,32*nf),
+                nn.Conv2d(32*nf,64*nf, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(),
-                nn.Conv2d(1024,512, kernel_size=1, stride=1, padding=0)]
+                nn.Conv2d(64*nf,cout, kernel_size=1, stride=1, padding=0)]
 
-        elif resolution==64:
+        elif image_size==64:
             network_part2=[
-                nn.Conv2d(256,512, kernel_size=4, stride=1, padding=0),
+                nn.Conv2d(16*nf,32*nf, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(),
-                nn.Conv2d(512,256, kernel_size=1, stride=1, padding=0)]
+                nn.Conv2d(32*nf,cout/2, kernel_size=1, stride=1, padding=0)]
 
         network = network_part1 + network_part2
-        self.network=nn.Sequential(*network)        
+        if activation is not None:
+            network+=[activation()]
+        self.network=nn.Sequential(*network)
 
     def forward(self, x):
         return self.network(x)
