@@ -151,13 +151,26 @@ class ResBlock(nn.Module):
     See Table 8 in arxiv/2011.00844.
     """
 
-    def __init__(self):
+    def __init__(self, cin, cout):
         super().__init__()
-        # TODO
+        residual_path=[
+            nn.ReLU(),
+            nn.Conv2d(cin,cout, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(cout,cout, kernel_size=3, stride=1, padding=1)]
+        identity_path=[
+            nn.AvgPool2d(stride=2),
+            nn.Conv2d(cin,cout, kernel_size=1, stride=1, padding=0)
+        ]
+        self.res_path=nn.Sequential(*residual_path)
+        self.identity_path=nn.Sequential(*identity_path)
+        
 
     def forward(self, x):
-        # TODO
-        pass
+        x_identity = self.identity_path(x)
+        x_res = self.res_path(x)
+        out = x_identity + x_res
+        return out
 
 
 class OffsetEncoder(nn.Module):
@@ -166,10 +179,34 @@ class OffsetEncoder(nn.Module):
     See Table 7 in arxiv/2011.00844.
     """
 
-    def __init__(self):
+    def __init__(self, cin, cout, resolution=128):
         super().__init__()
-        # TODO
+        resolutions=[64,128]
+        assert(resolution in resolutions)
+
+        network_part1=[
+            nn.Conv2d(cin,cout, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            ResBlock(32,64),
+            ResBlock(64,128),
+            ResBlock(128,256)]
+
+        if resolution==128:
+            network_part2=[
+                ResBlock(256,512),
+                nn.Conv2d(512,1024, kernel_size=4, stride=1, padding=0),
+                nn.ReLU(),
+                nn.Conv2d(1024,512, kernel_size=1, stride=1, padding=0)]
+
+        elif resolution==64:
+            network_part2=[
+                nn.Conv2d(256,512, kernel_size=4, stride=1, padding=0),
+                nn.ReLU(),
+                nn.Conv2d(512,256, kernel_size=1, stride=1, padding=0)]
+
+        network = network_part1 + network_part2
+        self.network=nn.Sequential(*network)        
 
     def forward(self, x):
-        # TODO
-        pass
+        return self.network(x)
+        

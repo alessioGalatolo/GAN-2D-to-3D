@@ -16,9 +16,9 @@ class Trainer():
         self.n_epochs = model_config.get('n_epochs', 1)
 
         # TODO: init things
-        self.trainloader = None
-        self.vallaoder = None
-        self.testloader = None
+        self.train_loader = None
+        self.val_loader = None
+        self.test_loader = None
         self.loss = None
 
     def fit(self):
@@ -26,7 +26,7 @@ class Trainer():
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):
             running_loss = 0.0
-            for i, data in enumerate(self.trainloader, 0):
+            for i, data in enumerate(self.train_loader, 0):
                 inputs, labels = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 
