@@ -211,5 +211,7 @@ class OffsetEncoder(nn.Module):
         self.network=nn.Sequential(*network)
 
     def forward(self, x):
-        return self.network(x)
+        #The authors do a reshape here for whatever reason
+        return self.network(x).reshape(x.size(0),-1)
+        # return self.network(x)
         
