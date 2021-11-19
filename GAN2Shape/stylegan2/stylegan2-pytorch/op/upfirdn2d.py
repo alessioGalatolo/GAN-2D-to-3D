@@ -1,21 +1,19 @@
-from collections import abc
 import os
+import platform
 
 import torch
 from torch.nn import functional as F
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
+use_fallback = False
 
-module_path = os.path.dirname(__file__)
-upfirdn2d_op = load(
-    "upfirdn2d",
-    sources=[
-        os.path.join(module_path, "upfirdn2d.cpp"),
-        os.path.join(module_path, "upfirdn2d_kernel.cu"),
-    ],
-)
-
+# Try loading precompiled, otherwise use native fallback
+try:
+    import upfirdn2d_op
+except ModuleNotFoundError as e:
+    print('StyleGAN2: Optimized CUDA op UpFirDn2d not available, using native PyTorch fallback.')
+    use_fallback = True
 
 class UpFirDn2dBackward(Function):
     @staticmethod
@@ -101,8 +99,8 @@ class UpFirDn2d(Function):
 
         ctx.save_for_backward(kernel, torch.flip(kernel, [0, 1]))
 
-        out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h + down_y) // down_y
-        out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w + down_x) // down_x
+        out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h) // down_y + 1
+        out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w) // down_x + 1
         ctx.out_size = (out_h, out_w)
 
         ctx.up = (up_x, up_y)
@@ -128,39 +126,30 @@ class UpFirDn2d(Function):
     def backward(ctx, grad_output):
         kernel, grad_kernel = ctx.saved_tensors
 
-        grad_input = None
-
-        if ctx.needs_input_grad[0]:
-            grad_input = UpFirDn2dBackward.apply(
-                grad_output,
-                kernel,
-                grad_kernel,
-                ctx.up,
-                ctx.down,
-                ctx.pad,
-                ctx.g_pad,
-                ctx.in_size,
-                ctx.out_size,
-            )
+        grad_input = UpFirDn2dBackward.apply(
+            grad_output,
+            kernel,
+            grad_kernel,
+            ctx.up,
+            ctx.down,
+            ctx.pad,
+            ctx.g_pad,
+            ctx.in_size,
+            ctx.out_size,
+        )
 
         return grad_input, None, None, None, None
 
 
 def upfirdn2d(input, kernel, up=1, down=1, pad=(0, 0)):
-    if not isinstance(up, abc.Iterable):
-        up = (up, up)
-
-    if not isinstance(down, abc.Iterable):
-        down = (down, down)
-
-    if len(pad) == 2:
-        pad = (pad[0], pad[1], pad[0], pad[1])
-
-    if input.device.type == "cpu":
-        out = upfirdn2d_native(input, kernel, *up, *down, *pad)
-
+    if use_fallback or input.device.type == "cpu":
+        out = upfirdn2d_native(
+            input, kernel, up, up, down, down, pad[0], pad[1], pad[0], pad[1]
+        )
     else:
-        out = UpFirDn2d.apply(input, kernel, up, down, pad)
+        out = UpFirDn2d.apply(
+            input, kernel, (up, up), (down, down), (pad[0], pad[1], pad[0], pad[1])
+        )
 
     return out
 
@@ -203,7 +192,7 @@ def upfirdn2d_native(
     out = out.permute(0, 2, 3, 1)
     out = out[:, ::down_y, ::down_x, :]
 
-    out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h + down_y) // down_y
-    out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w + down_x) // down_x
+    out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h) // down_y + 1
+    out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w) // down_x + 1
 
     return out.view(-1, channel, out_h, out_w)
