@@ -153,18 +153,17 @@ class ResBlock(nn.Module):
 
     def __init__(self, cin, cout):
         super().__init__()
-        residual_path=[
+        residual_path = [
             nn.ReLU(),
-            nn.Conv2d(cin,cout, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(cin, cout, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.Conv2d(cout,cout, kernel_size=3, stride=1, padding=1)]
-        identity_path=[
-            nn.AvgPool2d(stride=2),
-            nn.Conv2d(cin,cout, kernel_size=1, stride=1, padding=0)
+            nn.Conv2d(cout, cout, kernel_size=3, stride=1, padding=1)]
+        identity_path = [
+            nn.AvgPool2d(stride=2, kernel_size=2),
+            nn.Conv2d(cin, cout, kernel_size=1, stride=1, padding=0)
         ]
-        self.res_path=nn.Sequential(*residual_path)
-        self.identity_path=nn.Sequential(*identity_path)
-        
+        self.res_path = nn.Sequential(*residual_path)
+        self.identity_path = nn.Sequential(*identity_path)
 
     def forward(self, x):
         x_identity = self.identity_path(x)
@@ -181,37 +180,36 @@ class OffsetEncoder(nn.Module):
 
     def __init__(self, image_size=128, cin=3, cout=512, activation=None):
         super().__init__()
-        allowed_sizes=[64,128]
+        allowed_sizes = [64, 128]
         assert(image_size in allowed_sizes)
-        nf=16 #should this be an input param?
+        nf = 16  # should this be an input param?
 
-        network_part1=[
-            nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1), #the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
+        network_part1 = [
+            nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1),  # the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
             nn.ReLU(),
-            ResBlock(2*nf,4*nf),
-            ResBlock(4*nf,8*nf),
-            ResBlock(8*nf,16*nf)]
+            ResBlock(2*nf, 4*nf),
+            ResBlock(4*nf, 8*nf),
+            ResBlock(8*nf, 16*nf)]
 
-        if image_size==128:
-            network_part2=[
-                ResBlock(16*nf,32*nf),
-                nn.Conv2d(32*nf,64*nf, kernel_size=4, stride=1, padding=0),
+        if image_size == 128:
+            network_part2 = [
+                ResBlock(16*nf, 32*nf),
+                nn.Conv2d(32*nf, 64*nf, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(),
-                nn.Conv2d(64*nf,cout, kernel_size=1, stride=1, padding=0)]
+                nn.Conv2d(64*nf, cout, kernel_size=1, stride=1, padding=0)]
 
-        elif image_size==64:
-            network_part2=[
-                nn.Conv2d(16*nf,32*nf, kernel_size=4, stride=1, padding=0),
+        elif image_size == 64:
+            network_part2 = [
+                nn.Conv2d(16*nf, 32*nf, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(),
-                nn.Conv2d(32*nf,cout/2, kernel_size=1, stride=1, padding=0)]
+                nn.Conv2d(32*nf, cout/2, kernel_size=1, stride=1, padding=0)]
 
         network = network_part1 + network_part2
         if activation is not None:
-            network+=[activation()]
-        self.network=nn.Sequential(*network)
+            network += [activation()]
+        self.network = nn.Sequential(*network)
 
     def forward(self, x):
-        #The authors do a reshape here for whatever reason
-        return self.network(x).reshape(x.size(0),-1)
+        # The authors do a reshape here for whatever reason
+        return self.network(x).reshape(x.size(0), -1)
         # return self.network(x)
-        
