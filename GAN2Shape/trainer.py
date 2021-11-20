@@ -21,20 +21,19 @@ class Trainer():
         self.test_loader = None
         self.loss = None
 
-    def fit(self):
+    def fit(self, data):
         self.model.init_optimizers()
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):
             running_loss = 0.0
-            for i, data in enumerate(self.train_loader, 0):
-                inputs, labels = data
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
+            for i, data in enumerate(data, 0):
+                inputs = data.to(self.device)
 
-                m = self.model.forward()
+                m = self.model.forward(inputs)
                 self.model.backward()
 
-                running_loss += m
+                # running_loss += m
 
-            print('Loss: {}'.format(running_loss))
+            print(f'Loss: {running_loss}')
 
         print('Finished Training')

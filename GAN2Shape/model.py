@@ -20,7 +20,8 @@ class GAN2Shape(nn.Module):
         self.discriminator = self.discriminator.cuda()
         self.discriminator.eval()
 
-        self.image_size = 128
+        self.image_size = config.get('image_size')
+        self.step = 1
 
         self.lighting_net = networks.LightingNet(self.image_size)
         self.viewpoint_net = networks.ViewpointNet(self.image_size)
@@ -35,15 +36,18 @@ class GAN2Shape(nn.Module):
     def forward(self, data):
         # call the appropriate step
         getattr(self, f'forward_step{self.step}')(data)
-        self.step = (self.step + 1 % 3) + 1
+        self.step = ((self.step + 1) % 3) + 1
 
     def forward_step1(self, data):
+        print('Doing step 1')
         pass
 
     def forward_step2(self, data):
+        print('Doing step 2')
         pass
 
     def forward_step3(self, data):
+        print('Doing step 3')
         pass
 
     def backward(self):
