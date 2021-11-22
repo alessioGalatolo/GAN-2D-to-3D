@@ -30,6 +30,9 @@ class GAN2Shape(nn.Module):
 
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size)
         self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False)
+        pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
+        self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
+                                    strict=False)
 
     def init_optimizers(self):
         pass
