@@ -29,6 +29,7 @@ class GAN2Shape(nn.Module):
         self.albedo_net = networks.AlbedoNet(self.image_size)
 
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size)
+        self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False)
 
     def init_optimizers(self):
         pass
