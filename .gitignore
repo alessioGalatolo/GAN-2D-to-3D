@@ -141,8 +141,3 @@ cython_debug/
 .vscode
 
 scripts/
-
-checkpoints/
-
-data/
-

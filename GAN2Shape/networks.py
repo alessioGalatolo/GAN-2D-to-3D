@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import resnet as resnet_model
+from GAN2Shape.resnet import ResNet as resnet_model
 
 """
 Network dependencies for the networks in arxiv/2011.00844.

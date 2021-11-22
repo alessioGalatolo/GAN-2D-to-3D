@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .stylegan2 import Generator, Discriminator
+from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape import networks
 
 
