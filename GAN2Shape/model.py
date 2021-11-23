@@ -1,14 +1,18 @@
+import math
 import torch
 import torch.nn as nn
+from torch.utils import data
 from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape import networks
+from GAN2Shape.renderer import Renderer
+import GAN2Shape.utils as utils
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 
 class GAN2Shape(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device):
         super().__init__()
 
         ## Networks
@@ -39,10 +43,19 @@ class GAN2Shape(nn.Module):
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
         self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
                                     strict=False)
+        
         ## Misc
         self.max_depth=1.1
         self.min_depth=0.9
+        self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
         self.depth_rescaler = lambda d: (1+d)/2 *self.max_depth + (1-d)/2 *self.min_depth
+        self.device = device
+        self.lam_perc = 1
+        self.lam_smooth = 0.01
+        self.lam_regular = 0.01
+
+        ## Renderer
+        self.renderer = Renderer(config, self.image_size, self.device, self.min_depth, self.max_depth)
 
     def init_optimizers(self):
         pass
@@ -65,11 +78,68 @@ class GAN2Shape(nn.Module):
         self.step = ((self.step + 1) % 3) + 1
 
     def forward_step1(self, data_batch):
+        b = 1
+        h, w = self.image_size, self.image_size
         print('Doing step 1')
-        depth_raw = self.model.depth_net(data_batch)
+        inputs = data_batch.to(self.device)
+
+        ## Depth
+        depth_raw = self.depth_net(inputs)
         depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
         depth = torch.tanh(depth_centered).squeeze(0)
+        depth = self.model.depth_rescaler(depth)
+        #TODO: add border clamping
+        depth_border = torch.zeros(1,h,w-4).cuda()
+        depth_border = F.pad(depth_border, (2,2), mode='constant', value=1.02)
+        depth = self.depth*(1-depth_border) + depth_border *self.border_depth
+        #TODO: add flips?
 
+        ## Viewpoint
+        view = self.viewpoint_net(data_batch)
+        #TODO: add mean and flip?
+        view_trans = torch.cat([
+            view[:,:3] *math.pi/180 *self.xyz_rotation_range,
+            view[:,3:5] *self.xy_translation_range,
+            view[:,5:] *self.z_translation_range], 1)
+        self.renderer.set_transform_matrices(view_trans)
+
+        ## Albedo
+        albedo = self.albedo_net(data_batch)
+        #TODO: add flips?
+
+        ## Lighting
+        lighting = self.lighting_net(data_batch)
+        lighting_a = lighting[:,:1] /2+0.5  # ambience term
+        lighting_b = lighting[:,1:2] /2+0.5  # diffuse term
+        lighting_dxy = lighting[:,2:]
+        lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0),1).cuda()], 1)
+        lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
+
+
+        ## Shading
+        normal = self.renderer.get_normal_from_depth(depth)
+        diffuse_shading = (normal * lighting_d.view(-1,1,1,3)).sum(3).clamp(min=0).unsqueeze(1)
+        shading = lighting_a.view(-1,1,1,1) + lighting_b.view(-1,1,1,1)*diffuse_shading
+        texture = (albedo/2+0.5) * shading *2-1
+
+        recon_depth = self.renderer.warp_canon_depth(depth)
+        recon_normal = self.renderer.get_normal_from_depth(recon_depth)
+
+        grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
+        margin = (self.max_depth - self.min_depth) /2
+        recon_im_mask = (recon_depth < self.max_depth+margin).float()  # invalid border pixels have been clamped at max_depth+margin
+        recon_im_mask = recon_im_mask.unsqueeze(1).detach()
+        recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+
+        ## Loss 
+        #TODO: we could potentially implement these losses ourselves
+        loss_l1_im = utils.photometric_loss(recon_im[:b], data_batch, mask=recon_im_mask[:b])
+        loss_perc_im = self.PerceptualLoss(recon_im[:b] * recon_im_mask[:b], data_batch * recon_im_mask[:b])
+        loss_perc_im = torch.mean(loss_perc_im)
+        loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
+        loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
+
+        return loss_total
 
 
     def forward_step2(self, data):

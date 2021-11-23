@@ -9,3 +9,8 @@ gan_ckpt_path: checkpoints/stylegan2/stylegan2-car-config-f.pt
 root_path: data/car
 learning_rate: 0.0001
 
+## renderer
+rot_center_depth: 1.0
+fov: 10  # in degrees
+tex_cube_size: 2
+

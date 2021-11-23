@@ -14,7 +14,7 @@ class Trainer():
         if device == 'auto':
             device_name = 'cuda:0' if torch.cuda.is_available() else 'cpu'
             self.device = torch.device(device_name)
-        self.model = model(model_config)
+        self.model = model(model_config, self.device)
         self.n_epochs = model_config.get('n_epochs', 1)
 
         # TODO: init things
