@@ -7,4 +7,5 @@ image_size: 128
 z_dim: 512
 gan_ckpt_path: checkpoints/stylegan2/stylegan2-car-config-f.pt
 root_path: data/car
+learning_rate: 0.0001
 

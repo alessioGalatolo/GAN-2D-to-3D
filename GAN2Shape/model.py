@@ -39,8 +39,9 @@ class GAN2Shape(nn.Module):
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
         self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
                                     strict=False)
-
         ## Misc
+        self.max_depth=1.1
+        self.min_depth=0.9
         self.depth_rescaler = lambda d: (1+d)/2 *self.max_depth + (1-d)/2 *self.min_depth
 
     def init_optimizers(self):
@@ -63,13 +64,11 @@ class GAN2Shape(nn.Module):
         getattr(self, f'forward_step{self.step}')(data)
         self.step = ((self.step + 1) % 3) + 1
 
-    def forward_step1(self, data):
+    def forward_step1(self, data_batch):
         print('Doing step 1')
-        pass
-        depth_raw = self.depth_net(data).squeeze(1)
-        depth_centering = depth_raw.view(1,-1).mean(1).view(1,1,1)
-        depth = depth_raw - depth_raw.view(1,-1).mean(1).view(1,1,1) #this centers the depth map around 0 I think
-        depth = torch.tanh(depth)
+        depth_raw = self.model.depth_net(data_batch)
+        depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+        depth = torch.tanh(depth_centered).squeeze(0)
 
 
 
@@ -87,12 +86,13 @@ class GAN2Shape(nn.Module):
     def plot_predicted_depth_map(self, data, device, img_idx=0):
         depth_raw = self.depth_net(data[img_idx].to(device))
         depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
-        depth_centered = depth_centered[0,0,:].cpu().numpy()
+        depth = torch.tanh(depth_centered)
+        depth = self.depth_rescaler(depth)[0,0,:].cpu().numpy()
         x = np.arange(0, self.image_size, 1)
         y = np.arange(0, self.image_size, 1)
         X, Y = np.meshgrid(x, y)
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        ax.plot_surface(X, Y, depth_centered, cmap=cm.coolwarm,
+        ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
                        linewidth=0, antialiased=False)
         plt.show()
 

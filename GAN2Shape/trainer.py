@@ -30,16 +30,28 @@ class Trainer():
             running_loss = 0.0
             for i in range(len(data)):
                 data_batch=data[i]
-                inputs = data_batch.to(self.device)
+                data_batch = data_batch.to(self.device)
+                m = self.model.forward(data_batch)
 
-                m = self.model.forward(inputs)
+
                 self.model.backward()
 
                 # running_loss += m
 
             print(f'Loss: {running_loss}')
 
+        
+        self.fit_step1()
+        self.fit_step2()
+        self.fit_step3()
         print('Finished Training')
+
+    def fit_step1(self,data):
+        pass
+    def fit_step2(self,data):
+        pass
+    def fit_step3(self,data):
+        pass
     
     def pretrain_on_prior(self, data, plot_example=None):
         prior = self.model.prior.to(self.device)
@@ -50,7 +62,7 @@ class Trainer():
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optim,T_0=10,eta_min=0.0001)
         train_loss = []
         print("Pretraining depth net on prior shape")
-        iterator = tqdm(range(1000))
+        iterator = tqdm(range(10))
         for j in iterator:
             for i in range(len(data)):
                 data_batch=data[i]
@@ -58,6 +70,7 @@ class Trainer():
                 depth_raw = self.model.depth_net(inputs)
                 depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
                 depth = torch.tanh(depth_centered).squeeze(0)
+                depth = self.model.depth_rescaler(depth)
                 loss = F.mse_loss(depth,prior.detach())
                 optim.zero_grad()
                 loss.backward()
