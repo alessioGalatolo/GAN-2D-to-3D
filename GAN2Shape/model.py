@@ -3,6 +3,9 @@ import torch.nn as nn
 from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape import networks
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import cm
 
 class GAN2Shape(nn.Module):
     def __init__(self, config):
@@ -48,7 +51,7 @@ class GAN2Shape(nn.Module):
             height, width = self.image_size, self.image_size
             center_x, center_y = width / 2, height / 2
             #...
-            prior = torch.ones([1,1,height,width])
+            prior = torch.ones([1,height,width])
             return prior
 
 
@@ -77,3 +80,18 @@ class GAN2Shape(nn.Module):
 
     def backward(self):
         pass
+
+    def plot_predicted_depth_map(self, data, device, img_idx=0):
+        depth_raw = self.depth_net(data[img_idx].to(device))
+        depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+        depth_centered = depth_centered[0,0,:].cpu().numpy()
+        x = np.arange(0, self.image_size, 1)
+        y = np.arange(0, self.image_size, 1)
+        X, Y = np.meshgrid(x, y)
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax.plot_surface(X, Y, depth_centered, cmap=cm.coolwarm,
+                       linewidth=0, antialiased=False)
+        plt.show()
+
+
+
