@@ -27,7 +27,7 @@ class GAN2Shape(nn.Module):
 
         self.image_size = config.get('image_size')
         self.step = 1
-        self.prior = self.init_prior_shape("car")
+        self.prior = self.init_prior_shape("box")
 
         self.lighting_net = networks.LightingNet(self.image_size).cuda()
         self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
@@ -46,14 +46,17 @@ class GAN2Shape(nn.Module):
     def init_optimizers(self):
         pass
 
-    def init_prior_shape(self, type):
+    def init_prior_shape(self, type="box"):
         with torch.no_grad():
             height, width = self.image_size, self.image_size
-            center_x, center_y = width / 2, height / 2
-            #...
-            prior = torch.ones([1,height,width])
-            return prior
-
+            center_x, center_y = int(width / 2), int(height / 2)
+            if type=="box":        
+                box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
+                prior = torch.zeros([1,height,width])
+                prior[0, center_y - box_height:center_y+box_height,center_x-box_width:center_x+box_width] = 1
+                return prior
+            else:
+                return torch.ones([1,height,width])
 
     def forward(self, data):
         # call the appropriate step
