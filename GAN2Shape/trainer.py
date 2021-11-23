@@ -26,8 +26,9 @@ class Trainer():
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):
             running_loss = 0.0
-            for i, data in enumerate(data, 0):
-                inputs = data.to(self.device)
+            for i in range(len(data)):
+                data_batch=data[i]
+                inputs = data_batch.to(self.device)
 
                 m = self.model.forward(inputs)
                 self.model.backward()

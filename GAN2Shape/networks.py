@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from GAN2Shape.resnet import ResNet as resnet_model
-
+from GAN2Shape.resnet import *
 """
 Network dependencies for the networks in arxiv/2011.00844.
 
@@ -256,11 +255,11 @@ class PSPNet(nn.Module):
         self.criterion = criterion
 
         if layers == 50:
-            resnet = resnet_model.resnet50(pretrained=pretrained)
+            resnet = resnet50(pretrained=pretrained)
         elif layers == 101:
-            resnet = resnet_model.resnet101(pretrained=pretrained)
+            resnet = resnet101(pretrained=pretrained)
         else:
-            resnet = resnet_model.resnet152(pretrained=pretrained)
+            resnet = resnet152(pretrained=pretrained)
         self.layer0 = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu, resnet.conv2, resnet.bn2, resnet.relu, resnet.conv3, resnet.bn3, resnet.relu, resnet.maxpool)
         self.layer1, self.layer2, self.layer3, self.layer4 = resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4
 
