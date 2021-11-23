@@ -24,14 +24,15 @@ class GAN2Shape(nn.Module):
 
         self.image_size = config.get('image_size')
         self.step = 1
+        self.prior = self.init_prior_shape("car")
 
-        self.lighting_net = networks.LightingNet(self.image_size)
-        self.viewpoint_net = networks.ViewpointNet(self.image_size)
-        self.depth_net = networks.DepthNet(self.image_size)
-        self.albedo_net = networks.AlbedoNet(self.image_size)
+        self.lighting_net = networks.LightingNet(self.image_size).cuda()
+        self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
+        self.depth_net = networks.DepthNet(self.image_size).cuda()
+        self.albedo_net = networks.AlbedoNet(self.image_size).cuda()
 
-        self.offset_encoder_net = networks.OffsetEncoder(self.image_size)
-        self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False)
+        self.offset_encoder_net = networks.OffsetEncoder(self.image_size).cuda()
+        self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
         self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
                                     strict=False)
@@ -42,19 +43,13 @@ class GAN2Shape(nn.Module):
     def init_optimizers(self):
         pass
 
-    def init_prior_shape(self):
+    def init_prior_shape(self, type):
         with torch.no_grad():
             height, width = self.image_size, self.image_size
             center_x, center_y = width / 2, height / 2
             #...
-
-    def pretrain_depth_net_on_prior(self, input_images):
-
-        pass
-        prior = self.init_prior_shape()
-        for i in range(1000):
-            depth_raw = self.netD()
-            #...
+            prior = torch.ones([1,1,height,width])
+            return prior
 
 
     def forward(self, data):
@@ -66,8 +61,9 @@ class GAN2Shape(nn.Module):
         print('Doing step 1')
         pass
         depth_raw = self.depth_net(data).squeeze(1)
+        depth_centering = depth_raw.view(1,-1).mean(1).view(1,1,1)
         depth = depth_raw - depth_raw.view(1,-1).mean(1).view(1,1,1) #this centers the depth map around 0 I think
-        depth = F.tanh(depth)
+        depth = torch.tanh(depth)
 
 
 

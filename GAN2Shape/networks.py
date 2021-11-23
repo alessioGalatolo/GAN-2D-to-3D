@@ -50,7 +50,7 @@ class ViewpointNet(Encoder):
         super().__init__(cin=3, cout=6, size=image_size)
 
     def forward(self, x):
-        super().forward(input=x)
+        return super().forward(input=x)
 
 
 class LightingNet(Encoder):
@@ -58,7 +58,7 @@ class LightingNet(Encoder):
         super().__init__(cin=3, cout=4, size=image_size)
 
     def forward(self, x):
-        super().forward(input=x)
+        return super().forward(input=x)
 
 
 class EncoderDecoder(nn.Module):
@@ -131,7 +131,7 @@ class DepthNet(EncoderDecoder):
         super().__init__(cin=3, cout=1, size=image_size, activation=None)
 
     def forward(self, x):
-        super().forward(input=x)
+        return super().forward(input=x)
 
 
 class AlbedoNet(EncoderDecoder):
@@ -139,7 +139,7 @@ class AlbedoNet(EncoderDecoder):
         super().__init__(cin=3, cout=3, size=image_size, activation=nn.Tanh)
 
     def forward(self, x):
-        super().forward(input=x)
+        return super().forward(input=x)
 
 
 class ResBlock(nn.Module):

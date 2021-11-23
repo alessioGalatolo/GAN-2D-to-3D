@@ -12,6 +12,6 @@ sys.path.append(str(module_path.resolve()))
 os.chdir(module_path)
 
 from model import Generator, Discriminator
-# from lpips import PerceptualLoss #lpips doesn't have a submodule called "PerceptualLoss"
+from lpips import PerceptualLoss #lpips doesn't have a submodule called "PerceptualLoss"
 
 os.chdir(current_path)

@@ -29,7 +29,8 @@ def main():
     dataset = GenericDataset(config.get('root_path'), transform=transform)
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config)
-    trainer.fit(dataset)
+    trainer.pretrain_on_prior(dataset)
+    # trainer.fit(dataset)
 
 
 if __name__ == "__main__":

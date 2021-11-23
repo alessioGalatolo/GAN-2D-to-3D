@@ -19,4 +19,6 @@ class GenericDataset(Dataset):
         with Image.open(img_path)as image:
             if self.transform:
                 image = self.transform(image)
+            # image = image[None, :]
+            image = image.unsqueeze(0)
             return image
