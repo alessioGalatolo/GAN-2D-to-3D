@@ -59,38 +59,12 @@ class GAN2Shape(nn.Module):
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
-    def pretrain_depth_net(self, data, plot_example=None):
-        depth_net_params = filter(lambda p: p.requires_grad,
-                                  self.depth_net.parameters())
-        optim = torch.optim.Adam(depth_net_params, lr=0.0001,
-                                 betas=(0.9, 0.999), weight_decay=5e-4)
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optim,T_0=10,eta_min=0.0001)
-        train_loss = []
-        print("Pretraining depth net on prior shape")
-        iterator = tqdm(range(len(data)))
-        for i in iterator:
-            data_batch = data[i]
-            inputs = data_batch.cuda()
-            depth_raw = self.depth_net(inputs)
-            depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-            depth = torch.tanh(depth_centered).squeeze(0)
-            depth = self.rescale_depth(depth)
-            loss = F.mse_loss(depth, self.prior.detach())
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
-            if i % 10 == 0:
-                with torch.no_grad():
-                    iterator.set_description("Loss = " + str(loss.cpu()))
-                    train_loss.append(loss.cpu())
-            # scheduler.step()
-        # plt.plot(train_loss)
-        # plt.title("Pretrain prior - loss / 10 steps")
-        # plt.show()
-        if plot_example is not None:
-            with torch.no_grad():
-                self.plot_predicted_depth_map(data, img_idx=plot_example)
-        return train_loss
+    def depth_net_forward(self, inputs):
+        depth_raw = self.depth_net(inputs)
+        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+        depth = torch.tanh(depth_centered).squeeze(0)
+        depth = self.rescale_depth(depth)
+        return F.mse_loss(depth, self.prior.detach())
 
     def init_prior_shape(self, type="box"):
         with torch.no_grad():
