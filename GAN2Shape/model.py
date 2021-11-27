@@ -111,8 +111,7 @@ class GAN2Shape(nn.Module):
         getattr(self, f'forward_step{self.step}')(data)
         self.step = ((self.step + 1) % 3) + 1
 
-    def forward_step1(self, data_batch):
-        return
+    def forward_step1(self, inputs):
         b = 1
         h, w = self.image_size, self.image_size
         print('Doing step 1')
@@ -121,7 +120,7 @@ class GAN2Shape(nn.Module):
         depth_raw = self.depth_net(inputs)
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
-        depth = self.model.depth_rescaler(depth)
+        depth = self.rescale_depth(depth)
         # TODO: add border clamping
         depth_border = torch.zeros(1, h, w-4).cuda()
         depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
@@ -129,7 +128,7 @@ class GAN2Shape(nn.Module):
         # TODO: add flips?
 
         # Viewpoint
-        view = self.viewpoint_net(data_batch)
+        view = self.viewpoint_net(inputs)
         # TODO: add mean and flip?
         view_trans = torch.cat([
             view[:, :3] * math.pi/180 * self.xyz_rotation_range,
@@ -138,11 +137,11 @@ class GAN2Shape(nn.Module):
         self.renderer.set_transform_matrices(view_trans)
 
         # Albedo
-        albedo = self.albedo_net(data_batch)
+        albedo = self.albedo_net(inputs)
         # TODO: add flips?
 
         # Lighting
-        lighting = self.lighting_net(data_batch)
+        lighting = self.lighting_net(inputs)
         lighting_a = lighting[:, :1] / 2+0.5  # ambience term
         lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
         lighting_dxy = lighting[:, 2:]
@@ -168,9 +167,9 @@ class GAN2Shape(nn.Module):
 
         # Loss
         # TODO: we could potentially implement these losses ourselves
-        loss_l1_im = utils.photometric_loss(recon_im[:b], data_batch, mask=recon_im_mask[:b])
+        loss_l1_im = utils.photometric_loss(recon_im[:b], inputs, mask=recon_im_mask[:b])
         loss_perc_im = self.PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
-                                           data_batch * recon_im_mask[:b])
+                                           inputs * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth

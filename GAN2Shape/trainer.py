@@ -34,16 +34,18 @@ class Trainer():
 
             print(f'Loss: {running_loss}')
 
-        self.fit_step1()
-        self.fit_step2()
-        self.fit_step3()
+        # FIXME: not sure what these are for
+        # self.fit_step1()
+        # self.fit_step2()
+        # self.fit_step3()
         print('Finished Training')
 
-    def fit_step1(self, data):
-        pass
+    # FIXME: not sure what these are for
+    # def fit_step1(self, data):
+    #     pass
 
-    def fit_step2(self, data):
-        pass
+    # def fit_step2(self, data):
+    #     pass
 
-    def fit_step3(self, data):
-        pass
+    # def fit_step3(self, data):
+        # pass
