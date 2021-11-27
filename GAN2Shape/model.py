@@ -49,7 +49,6 @@ class GAN2Shape(nn.Module):
         self.max_depth = 1.1
         self.min_depth = 0.9
         self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
-        self.depth_rescaler = lambda d: (1+d)/2 * self.max_depth + (1-d)/2 * self.min_depth
         self.device = device
         self.lam_perc = 1
         self.lam_smooth = 0.01
@@ -58,8 +57,42 @@ class GAN2Shape(nn.Module):
         # Renderer
         self.renderer = Renderer(config, self.image_size, self.device, self.min_depth, self.max_depth)
 
-    def init_optimizers(self):
-        pass
+    def rescale_depth(self, depth):
+        return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
+
+    def pretrain_depth_net(self, data, plot_example=None):
+        prior = self.prior.to(self.device)
+        depth_net_params = filter(lambda p: p.requires_grad,
+                                  self.depth_net.parameters())
+        optim = torch.optim.Adam(depth_net_params, lr=0.0001,
+                                 betas=(0.9, 0.999), weight_decay=5e-4)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optim,T_0=10,eta_min=0.0001)
+        train_loss = []
+        print("Pretraining depth net on prior shape")
+        iterator = range(len(data))
+        for i in iterator:
+            data_batch = data[i]
+            inputs = data_batch.to(self.device)
+            depth_raw = self.depth_net(inputs)
+            depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+            depth = torch.tanh(depth_centered).squeeze(0)
+            depth = self.rescale_depth(depth)
+            loss = F.mse_loss(depth, prior.detach())
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+            if i % 10 == 0:
+                with torch.no_grad():
+                    iterator.set_description("Loss = " + str(loss.cpu()))
+                    train_loss.append(loss.cpu())
+            # scheduler.step()
+        # plt.plot(train_loss)
+        # plt.title("Pretrain prior - loss / 10 steps")
+        # plt.show()
+        if plot_example is not None:
+            with torch.no_grad():
+                self.plot_predicted_depth_map(data, self.device, img_idx=plot_example)
+        return train_loss
 
     def init_prior_shape(self, type="box"):
         with torch.no_grad():
@@ -69,8 +102,8 @@ class GAN2Shape(nn.Module):
                 box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
                 prior = torch.zeros([1, height, width])
                 prior[0,
-                      center_y - box_height:center_y+box_height,
-                      center_x-box_width:center_x+box_width] = 1
+                      center_y-box_height: center_y+box_height,
+                      center_x-box_width: center_x+box_width] = 1
                 return prior
             else:
                 return torch.ones([1, height, width])
