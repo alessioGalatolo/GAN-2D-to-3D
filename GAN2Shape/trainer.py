@@ -12,28 +12,24 @@ class Trainer():
         self.model = model(model_config)
         self.n_epochs = model_config.get('n_epochs', 1)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
-
-        # TODO: init things
-        self.train_loader = None
-        self.val_loader = None
-        self.test_loader = None
-        self.loss = None
+        self.refinement_iterations = model_config.get('refinement_iterations', 4)
 
     def fit(self, data, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
 
         # loop over the dataset multiple times
-        for epoch in tqdm(range(self.n_epochs)):
+        for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs
             self.pretrain_on_prior(data, plot_depth_map)
             running_loss = 0.0
             for i in range(len(data)):
-                data_batch = data[i]
-                data_batch = data_batch.cuda()
-                m = self.model.forward(data_batch)
-                optim.zero_grad()
-                self.model.backward()
-                optim.step()
-                # running_loss += m
+                for _ in range(self.refinement_iterations):
+                    data_batch = data[i]
+                    data_batch = data_batch.cuda()
+                    metrics = self.model.forward(data_batch)
+                    optim.zero_grad()
+                    metrics.backward()
+                    optim.step()
+                    # running_loss += m
 
             print(f'Loss: {running_loss}')
 
@@ -63,9 +59,8 @@ class Trainer():
         # plt.plot(train_loss)
         # plt.title("Pretrain prior - loss / 10 steps")
         # plt.show()
-        if plot_depth_map is not None:
-            with torch.no_grad():
-                self.model.plot_predicted_depth_map(data)
+        if plot_depth_map:
+            self.model.plot_predicted_depth_map(data)
         return train_loss
 
     @staticmethod

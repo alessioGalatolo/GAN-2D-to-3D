@@ -52,6 +52,9 @@ class GAN2Shape(nn.Module):
         self.lam_perc = 1
         self.lam_smooth = 0.01
         self.lam_regular = 0.01
+        self.xyz_rotation_range = config.get('xyz_rotation_range', 60)
+        self.xy_translation_range = config.get('xy_translation_range', 0.1)
+        self.z_translation_range = config.get('z_translation_range', 0.1)
 
         # Renderer
         self.renderer = Renderer(config, self.image_size, self.min_depth, self.max_depth)
@@ -98,7 +101,7 @@ class GAN2Shape(nn.Module):
         # TODO: add border clamping
         depth_border = torch.zeros(1, h, w-4).cuda()
         depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
-        depth = self.depth*(1-depth_border) + depth_border * self.border_depth
+        depth = depth*(1-depth_border) + depth_border * self.border_depth
         # TODO: add flips?
 
         # Viewpoint
@@ -158,18 +161,16 @@ class GAN2Shape(nn.Module):
         print('Doing step 3')
         pass
 
-    def backward(self):
-        pass
-
     def plot_predicted_depth_map(self, data, img_idx=0):
-        depth_raw = self.depth_net(data[img_idx].cuda())
-        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-        depth = torch.tanh(depth_centered)
-        depth = self.rescale_depth(depth)[0, 0, :].cpu().numpy()
-        x = np.arange(0, self.image_size, 1)
-        y = np.arange(0, self.image_size, 1)
-        X, Y = np.meshgrid(x, y)
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False)
-        plt.show()
+        with torch.no_grad():
+            depth_raw = self.depth_net(data[img_idx].cuda())
+            depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+            depth = torch.tanh(depth_centered)
+            depth = self.rescale_depth(depth)[0, 0, :].cpu().numpy()
+            x = np.arange(0, self.image_size, 1)
+            y = np.arange(0, self.image_size, 1)
+            X, Y = np.meshgrid(x, y)
+            fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+            ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
+                            linewidth=0, antialiased=False)
+            plt.show()
