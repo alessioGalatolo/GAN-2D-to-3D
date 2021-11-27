@@ -1,4 +1,5 @@
 import math
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 from GAN2Shape.stylegan2 import Generator, Discriminator
@@ -12,7 +13,7 @@ from matplotlib import cm
 
 
 class GAN2Shape(nn.Module):
-    def __init__(self, config, device):
+    def __init__(self, config):
         super().__init__()
 
         # Networks
@@ -31,9 +32,8 @@ class GAN2Shape(nn.Module):
 
         self.image_size = config.get('image_size')
         self.step = 1
-        self.prior = self.init_prior_shape("box")
+        self.prior = self.init_prior_shape("box").cuda()
 
-        # FIXME: no use of having a device param if we move to gpu anyway :')
         self.lighting_net = networks.LightingNet(self.image_size).cuda()
         self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
         self.depth_net = networks.DepthNet(self.image_size).cuda()
@@ -49,19 +49,17 @@ class GAN2Shape(nn.Module):
         self.max_depth = 1.1
         self.min_depth = 0.9
         self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
-        self.device = device
         self.lam_perc = 1
         self.lam_smooth = 0.01
         self.lam_regular = 0.01
 
         # Renderer
-        self.renderer = Renderer(config, self.image_size, self.device, self.min_depth, self.max_depth)
+        self.renderer = Renderer(config, self.image_size, self.min_depth, self.max_depth)
 
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def pretrain_depth_net(self, data, plot_example=None):
-        prior = self.prior.to(self.device)
         depth_net_params = filter(lambda p: p.requires_grad,
                                   self.depth_net.parameters())
         optim = torch.optim.Adam(depth_net_params, lr=0.0001,
@@ -69,15 +67,15 @@ class GAN2Shape(nn.Module):
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optim,T_0=10,eta_min=0.0001)
         train_loss = []
         print("Pretraining depth net on prior shape")
-        iterator = range(len(data))
+        iterator = tqdm(range(len(data)))
         for i in iterator:
             data_batch = data[i]
-            inputs = data_batch.to(self.device)
+            inputs = data_batch.cuda()
             depth_raw = self.depth_net(inputs)
             depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
             depth = torch.tanh(depth_centered).squeeze(0)
             depth = self.rescale_depth(depth)
-            loss = F.mse_loss(depth, prior.detach())
+            loss = F.mse_loss(depth, self.prior.detach())
             optim.zero_grad()
             loss.backward()
             optim.step()
@@ -91,7 +89,7 @@ class GAN2Shape(nn.Module):
         # plt.show()
         if plot_example is not None:
             with torch.no_grad():
-                self.plot_predicted_depth_map(data, self.device, img_idx=plot_example)
+                self.plot_predicted_depth_map(data, img_idx=plot_example)
         return train_loss
 
     def init_prior_shape(self, type="box"):
@@ -114,10 +112,10 @@ class GAN2Shape(nn.Module):
         self.step = ((self.step + 1) % 3) + 1
 
     def forward_step1(self, data_batch):
+        return
         b = 1
         h, w = self.image_size, self.image_size
         print('Doing step 1')
-        inputs = data_batch.to(self.device)
 
         # Depth
         depth_raw = self.depth_net(inputs)
@@ -190,11 +188,11 @@ class GAN2Shape(nn.Module):
     def backward(self):
         pass
 
-    def plot_predicted_depth_map(self, data, device, img_idx=0):
-        depth_raw = self.depth_net(data[img_idx].to(device))
+    def plot_predicted_depth_map(self, data, img_idx=0):
+        depth_raw = self.depth_net(data[img_idx].cuda())
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered)
-        depth = self.depth_rescaler(depth)[0, 0, :].cpu().numpy()
+        depth = self.rescale_depth(depth)[0, 0, :].cpu().numpy()
         x = np.arange(0, self.image_size, 1)
         y = np.arange(0, self.image_size, 1)
         X, Y = np.meshgrid(x, y)

@@ -1,6 +1,7 @@
 import argparse
 import yaml
 from torchvision import transforms
+from torch import cuda
 from GAN2Shape.trainer import Trainer
 from GAN2Shape.model import GAN2Shape
 from GAN2Shape.dataset import GenericDataset
@@ -13,6 +14,10 @@ def main():
                         default='config.yml',
                         help='path of the config yaml file')
     args = parser.parse_args()
+
+    if not cuda.is_available():
+        print("A CUDA-enables GPU is required to run this model")
+        exit(1)
 
     # read configuration
     with open(args.CONFIG, 'r') as config_file:
