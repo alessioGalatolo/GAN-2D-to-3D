@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class Trainer():
     def __init__(self,
                  model,
@@ -29,10 +30,9 @@ class Trainer():
         for epoch in tqdm(range(self.n_epochs)):
             running_loss = 0.0
             for i in range(len(data)):
-                data_batch=data[i]
+                data_batch = data[i]
                 data_batch = data_batch.to(self.device)
                 m = self.model.forward(data_batch)
-
 
                 self.model.backward()
 
@@ -40,19 +40,20 @@ class Trainer():
 
             print(f'Loss: {running_loss}')
 
-        
         self.fit_step1()
         self.fit_step2()
         self.fit_step3()
         print('Finished Training')
 
-    def fit_step1(self,data):
+    def fit_step1(self, data):
         pass
-    def fit_step2(self,data):
+
+    def fit_step2(self, data):
         pass
-    def fit_step3(self,data):
+
+    def fit_step3(self, data):
         pass
-    
+
     def pretrain_on_prior(self, data, plot_example=None):
         prior = self.model.prior.to(self.device)
         self.model.init_optimizers()
@@ -65,13 +66,13 @@ class Trainer():
         iterator = tqdm(range(10))
         for j in iterator:
             for i in range(len(data)):
-                data_batch=data[i]
+                data_batch = data[i]
                 inputs = data_batch.to(self.device)
                 depth_raw = self.model.depth_net(inputs)
-                depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+                depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
                 depth = torch.tanh(depth_centered).squeeze(0)
                 depth = self.model.depth_rescaler(depth)
-                loss = F.mse_loss(depth,prior.detach())
+                loss = F.mse_loss(depth, prior.detach())
                 optim.zero_grad()
                 loss.backward()
                 optim.step()

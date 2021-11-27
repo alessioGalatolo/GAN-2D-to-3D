@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-from torch.utils import data
 from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape import networks
 from GAN2Shape.renderer import Renderer
@@ -11,11 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 
+
 class GAN2Shape(nn.Module):
     def __init__(self, config, device):
         super().__init__()
 
-        ## Networks
+        # Networks
         self.generator = Generator(config.get('gan_size'),
                                    config.get('z_dim'), 8,
                                    channel_multiplier=config.get('channel_multiplier'))
@@ -33,6 +33,7 @@ class GAN2Shape(nn.Module):
         self.step = 1
         self.prior = self.init_prior_shape("box")
 
+        # FIXME: no use of having a device param if we move to gpu anyway :')
         self.lighting_net = networks.LightingNet(self.image_size).cuda()
         self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
         self.depth_net = networks.DepthNet(self.image_size).cuda()
@@ -43,18 +44,18 @@ class GAN2Shape(nn.Module):
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
         self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
                                     strict=False)
-        
-        ## Misc
-        self.max_depth=1.1
-        self.min_depth=0.9
+
+        # Misc
+        self.max_depth = 1.1
+        self.min_depth = 0.9
         self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
-        self.depth_rescaler = lambda d: (1+d)/2 *self.max_depth + (1-d)/2 *self.min_depth
+        self.depth_rescaler = lambda d: (1+d)/2 * self.max_depth + (1-d)/2 * self.min_depth
         self.device = device
         self.lam_perc = 1
         self.lam_smooth = 0.01
         self.lam_regular = 0.01
 
-        ## Renderer
+        # Renderer
         self.renderer = Renderer(config, self.image_size, self.device, self.min_depth, self.max_depth)
 
     def init_optimizers(self):
@@ -64,13 +65,15 @@ class GAN2Shape(nn.Module):
         with torch.no_grad():
             height, width = self.image_size, self.image_size
             center_x, center_y = int(width / 2), int(height / 2)
-            if type=="box":        
+            if type == "box":
                 box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
-                prior = torch.zeros([1,height,width])
-                prior[0, center_y - box_height:center_y+box_height,center_x-box_width:center_x+box_width] = 1
+                prior = torch.zeros([1, height, width])
+                prior[0,
+                      center_y - box_height:center_y+box_height,
+                      center_x-box_width:center_x+box_width] = 1
                 return prior
             else:
-                return torch.ones([1,height,width])
+                return torch.ones([1, height, width])
 
     def forward(self, data):
         # call the appropriate step
@@ -83,64 +86,65 @@ class GAN2Shape(nn.Module):
         print('Doing step 1')
         inputs = data_batch.to(self.device)
 
-        ## Depth
+        # Depth
         depth_raw = self.depth_net(inputs)
-        depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.model.depth_rescaler(depth)
-        #TODO: add border clamping
-        depth_border = torch.zeros(1,h,w-4).cuda()
-        depth_border = F.pad(depth_border, (2,2), mode='constant', value=1.02)
-        depth = self.depth*(1-depth_border) + depth_border *self.border_depth
-        #TODO: add flips?
+        # TODO: add border clamping
+        depth_border = torch.zeros(1, h, w-4).cuda()
+        depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
+        depth = self.depth*(1-depth_border) + depth_border * self.border_depth
+        # TODO: add flips?
 
-        ## Viewpoint
+        # Viewpoint
         view = self.viewpoint_net(data_batch)
-        #TODO: add mean and flip?
+        # TODO: add mean and flip?
         view_trans = torch.cat([
-            view[:,:3] *math.pi/180 *self.xyz_rotation_range,
-            view[:,3:5] *self.xy_translation_range,
-            view[:,5:] *self.z_translation_range], 1)
+            view[:, :3] * math.pi/180 * self.xyz_rotation_range,
+            view[:, 3:5] * self.xy_translation_range,
+            view[:, 5:] * self.z_translation_range], 1)
         self.renderer.set_transform_matrices(view_trans)
 
-        ## Albedo
+        # Albedo
         albedo = self.albedo_net(data_batch)
-        #TODO: add flips?
+        # TODO: add flips?
 
-        ## Lighting
+        # Lighting
         lighting = self.lighting_net(data_batch)
-        lighting_a = lighting[:,:1] /2+0.5  # ambience term
-        lighting_b = lighting[:,1:2] /2+0.5  # diffuse term
-        lighting_dxy = lighting[:,2:]
-        lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0),1).cuda()], 1)
+        lighting_a = lighting[:, :1] / 2+0.5  # ambience term
+        lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
+        lighting_dxy = lighting[:, 2:]
+        lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0), 1).cuda()], 1)
         lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
 
-
-        ## Shading
+        # Shading
         normal = self.renderer.get_normal_from_depth(depth)
-        diffuse_shading = (normal * lighting_d.view(-1,1,1,3)).sum(3).clamp(min=0).unsqueeze(1)
-        shading = lighting_a.view(-1,1,1,1) + lighting_b.view(-1,1,1,1)*diffuse_shading
-        texture = (albedo/2+0.5) * shading *2-1
+        diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
+        shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
+        texture = (albedo/2+0.5) * shading * 2 - 1
 
         recon_depth = self.renderer.warp_canon_depth(depth)
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
 
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
-        margin = (self.max_depth - self.min_depth) /2
-        recon_im_mask = (recon_depth < self.max_depth+margin).float()  # invalid border pixels have been clamped at max_depth+margin
+        margin = (self.max_depth - self.min_depth) / 2
+
+        # invalid border pixels have been clamped at max_depth+margin
+        recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach()
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
 
-        ## Loss 
-        #TODO: we could potentially implement these losses ourselves
+        # Loss
+        # TODO: we could potentially implement these losses ourselves
         loss_l1_im = utils.photometric_loss(recon_im[:b], data_batch, mask=recon_im_mask[:b])
-        loss_perc_im = self.PerceptualLoss(recon_im[:b] * recon_im_mask[:b], data_batch * recon_im_mask[:b])
+        loss_perc_im = self.PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
+                                           data_batch * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         return loss_total
-
 
     def forward_step2(self, data):
         print('Doing step 2')
@@ -155,16 +159,13 @@ class GAN2Shape(nn.Module):
 
     def plot_predicted_depth_map(self, data, device, img_idx=0):
         depth_raw = self.depth_net(data[img_idx].to(device))
-        depth_centered = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered)
-        depth = self.depth_rescaler(depth)[0,0,:].cpu().numpy()
+        depth = self.depth_rescaler(depth)[0, 0, :].cpu().numpy()
         x = np.arange(0, self.image_size, 1)
         y = np.arange(0, self.image_size, 1)
         X, Y = np.meshgrid(x, y)
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
         ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
-                       linewidth=0, antialiased=False)
+                        linewidth=0, antialiased=False)
         plt.show()
-
-
-
