@@ -31,6 +31,7 @@ def main():
                 transforms.ToTensor()
             ]
         )
+    config['transform'] = transform
     dataset = GenericDataset(config.get('root_path'), transform=transform)
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config)

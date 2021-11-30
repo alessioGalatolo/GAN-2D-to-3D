@@ -10,3 +10,7 @@ class DiscriminatorLoss():
 
 class PhotometricLoss():
     ...
+
+
+class SmoothLoss():
+    ...

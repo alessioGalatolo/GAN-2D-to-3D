@@ -1,15 +1,17 @@
 import math
+from torchvision import transforms
 from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.multivariate_normal import MultivariateNormal
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape import networks
 from GAN2Shape.renderer import Renderer
-from GAN2Shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss
+from GAN2Shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
 from GAN2Shape import utils
 
 
@@ -33,6 +35,7 @@ class GAN2Shape(nn.Module):
 
         self.image_size = config.get('image_size')
         self.step = 1
+        self.collected = None
         self.prior = self.init_prior_shape("box").cuda()
 
         self.lighting_net = networks.LightingNet(self.image_size).cuda()
@@ -56,7 +59,9 @@ class GAN2Shape(nn.Module):
         self.xyz_rotation_range = config.get('xyz_rotation_range', 60)
         self.xy_translation_range = config.get('xy_translation_range', 0.1)
         self.z_translation_range = config.get('z_translation_range', 0.1)
-        self.crop = None  # TODO
+        self.use_mask = config.get('use_mask', True)
+        self.transformer = config.get('transformer')
+        self.rand_light = config.get('rand_light', [-1, 1, -0.2, 0.8, -0.1, 0.6, -0.6])
         self.truncation = config.get('truncation', 1)
         if self.truncation < 1:
             with torch.no_grad():
@@ -65,6 +70,10 @@ class GAN2Shape(nn.Module):
             self.mean_latent = None
         # Renderer
         self.renderer = Renderer(config, self.image_size, self.min_depth, self.max_depth)
+
+        view_mvn_path = config.get('view_mvn_path', 'checkpoints/view_light/view_mvn.pth')
+        light_mvn_path = config.get('light_mvn_path', 'checkpoints/view_light/light_mvn.pth')
+        self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path)
 
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
@@ -92,10 +101,13 @@ class GAN2Shape(nn.Module):
 
     def forward(self, data):
         # call the appropriate step
-        getattr(self, f'forward_step{self.step}')(data)
+        # it is redundant to pass properties as arguments but improves readability
+        loss, collected = getattr(self, f'forward_step{self.step}')(data, self.collected)
+        self.collected = collected
         self.step = ((self.step + 1) % 3) + 1
+        return loss
 
-    def forward_step1(self, inputs):
+    def forward_step1(self, inputs, collected):
         b = 1
         h, w = self.image_size, self.image_size
         print('Doing step 1')
@@ -151,34 +163,45 @@ class GAN2Shape(nn.Module):
 
         # Loss
         # TODO: we could potentially implement these losses ourselves
-        loss_l1_im = utils.photometric_loss(recon_im[:b], inputs, mask=recon_im_mask[:b]) # FIXME: use our loss
-        loss_perc_im = self.PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
-                                           inputs * recon_im_mask[:b])
+        loss_l1_im = PhotometricLoss()(recon_im[:b], inputs, mask=recon_im_mask[:b])  # FIXME: use our loss
+        loss_perc_im = PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
+                                      inputs * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
+        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-        return loss_total
+        # TODO: tuple of depth, light, etc. (see step2 for what is needed)
+        # if use_mask is false set canon_mask to None
+        collected = ...
+        return loss_total, collected
 
-    def forward_step2(self, data):
+    def forward_step2(self, data, collected):
         print('Doing step 2')
+        origin_size = data.size[0]
+        # unpack collected
+        normal, light_a, light_b, albedo, depth, canon_mask = collected
+
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(self.batchsize)
+            pseudo_im, mask = self.sample_pseudo_imgs(self.batchsize, normal,
+                                                      light_a, light_b,
+                                                      albedo, depth,
+                                                      canon_mask)  # FIXME: batchsize?
 
-        proj_im, offset = self.generator.invert(pseudo_im, self.truncation, self.mean_latent)
-        if self.crop is not None:  # FIXME: move resize, crop
-            proj_im = utils.resize(proj_im, [self.origin_size, self.origin_size])
-            proj_im = utils.crop(proj_im, self.crop)
-        proj_im = utils.resize(proj_im, [self.image_size, self.image_size])
+        projected_image, offset = self.generator.invert(pseudo_im,
+                                                        self.truncation,
+                                                        self.mean_latent)
+        projected_image = transforms.Resize(origin_size)
+        projected_image = self.tranformer(projected_image)
 
-        self.loss_l1 = utils.photometric_loss(proj_im, pseudo_im, mask=mask)  # FIXME: use our loss
-        self.loss_rec = (self.discriminator, self.proj_im, pseudo_im, mask=mask)
+        self.loss_l1 = PhotometricLoss()(projected_image, pseudo_im, mask=mask)
+        self.loss_rec = DiscriminatorLoss(self.discriminator)(projected_image, pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
 
-        return loss_total
+        collected = projected_image.cpu(), mask.cpu()
+        return loss_total, collected
 
-    def forward_step3(self, data):
+    def forward_step3(self, data, collected):
         print('Doing step 3')
         ...
 
@@ -196,7 +219,7 @@ class GAN2Shape(nn.Module):
                             linewidth=0, antialiased=False)
             plt.show()
 
-    def sample_pseudo_imgs(self, batchsize):
+    def sample_pseudo_imgs(self, batchsize, normal, light_a, light_b, albedo, depth, canon_mask=None):
         b, h, w = batchsize, self.image_size, self.image_size
 
         # random lighting conditions
@@ -207,21 +230,21 @@ class GAN2Shape(nn.Module):
         rand_light_dxy[:, 1].uniform_(y_min, y_max)
         rand_light_d = torch.cat([rand_light_dxy, torch.ones(b, 1).cuda()], 1)
         rand_light_d = rand_light_d / ((rand_light_d**2).sum(1, keepdim=True))**0.5
-        rand_diffuse_shading = (self.normal[0, None] * rand_light_d.view(-1, 1, 1, 3))\
+        rand_diffuse_shading = (normal[0, None] * rand_light_d.view(-1, 1, 1, 3))\
             .sum(3).clamp(min=0).unsqueeze(1)
         rand = torch.FloatTensor(b, 1, 1, 1).cuda().uniform_(diffuse_min, diffuse_max)
-        rand_diffuse = (self.light_b[0, None].view(-1, 1, 1, 1) + rand) * rand_diffuse_shading
-        rand_shading = self.light_a[0, None].view(-1, 1, 1, 1) + alpha * rand + rand_diffuse
-        rand_light_im = (self.albedo[0, None]/2+0.5) * rand_shading * 2 - 1
+        rand_diffuse = (light_b[0, None].view(-1, 1, 1, 1) + rand) * rand_diffuse_shading
+        rand_shading = light_a[0, None].view(-1, 1, 1, 1) + alpha * rand + rand_diffuse
+        rand_light_im = (albedo[0, None]/2+0.5) * rand_shading * 2 - 1
 
-        depth = self.depth[0, None]
-        if self.use_mask:
-            mask = self.canon_mask.expand(b, 3, h, w)
+        depth = depth[0, None]
+        if canon_mask is not None:
+            mask = canon_mask.expand(b, 3, h, w)
         else:
             mask = torch.ones(b, 3, h, w).cuda()
 
         # random viewpoints
-        rand_views = self.sample_view_light(b, 'view')
+        rand_views = self.view_light_sampler.sample(b, 'view')
         rand_views_trans = torch.cat([
             rand_views[:, :3] * math.pi/180 * self.xyz_rotation_range,
             rand_views[:, 3:5] * self.xy_translation_range,
@@ -232,14 +255,27 @@ class GAN2Shape(nn.Module):
         pseudo_im, mask = pseudo_im, mask[:, 0, None, ...]
         return pseudo_im.clamp(min=-1, max=1), mask.contiguous()
 
-    def sample_view_light(self, num, sample_type='view'):
+
+class ViewLightSampler():
+    def __init__(self, view_mvn_path, light_mvn_path, view_scale):
+        view_mvn = torch.load(view_mvn_path)
+        light_mvn = torch.load(light_mvn_path)
+        self.view_mean = view_mvn['mean'].cuda()
+        self.light_mean = light_mvn['mean'].cuda()
+        self.view_scale = view_scale
+        self.view_dist = MultivariateNormal(view_mvn['mean'].cuda(), view_mvn['cov'].cuda())
+        self.light_dist = MultivariateNormal(light_mvn['mean'].cuda(), light_mvn['cov'].cuda())
+
+    def _sample(self, sample_type):
+        dist = getattr(self, f'{sample_type}_dist')
+        sample = dist.sample()[None, :]
+        if sample_type == 'view':
+            sample[0, 1] *= self.view_scale
+        return sample
+
+    def sample(self, n=1, sample_type='view'):
         samples = []
-        for i in range(num):
-            if sample_type == 'view':
-                sample = self.view_mvn.sample()[None, :]
-                sample[0, 1] *= self.view_scale
-                samples.append(sample)
-            else:
-                samples.append(self.light_mvn.sample()[None, :])
+        for _ in range(n):
+            samples.append(self._sample(sample_type))
         samples = torch.cat(samples, dim=0)
         return samples
