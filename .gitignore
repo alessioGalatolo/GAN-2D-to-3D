@@ -142,3 +142,4 @@ cython_debug/
 
 scripts/
 test.py
+neural_renderer
