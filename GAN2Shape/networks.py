@@ -35,9 +35,11 @@ class Encoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(nf*4, nf*8, kernel_size=4, stride=2, padding=1, bias=False),
             nn.ReLU(inplace=True),
-            nn.Conv2d(nf*8, nf*8, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.Conv2d(nf*8, nf*16, kernel_size=4, stride=2, padding=1, bias=False),
             nn.ReLU(inplace=True),
-            nn.Conv2d(nf*8, cout, kernel_size=1, stride=1, padding=0, bias=False)]
+            nn.Conv2d(nf*16, nf*16, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(nf*16, cout, kernel_size=1, stride=1, padding=0, bias=False)]
         network += [nn.Tanh()]
         self.network = nn.Sequential(*network)
 
@@ -50,7 +52,8 @@ class ViewpointNet(Encoder):
         super().__init__(cin=3, cout=6, size=image_size)
 
     def forward(self, x):
-        return super().forward(input=x)
+        out = super().forward(input=x)
+        return out
 
 
 class LightingNet(Encoder):

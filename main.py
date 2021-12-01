@@ -35,7 +35,7 @@ def main():
     dataset = GenericDataset(config.get('root_path'), transform=transform)
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config)
-    trainer.fit(dataset, plot_depth_map=True)
+    trainer.fit(dataset, plot_depth_map=False)
 
 
 if __name__ == "__main__":
