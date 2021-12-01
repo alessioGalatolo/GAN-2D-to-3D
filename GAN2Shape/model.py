@@ -75,6 +75,11 @@ class GAN2Shape(nn.Module):
         light_mvn_path = config.get('light_mvn_path', 'checkpoints/view_light/light_mvn.pth')
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, config.get('view_scale'))
 
+        #Loss functions
+        self.perceptual_loss = PerceptualLoss(
+            model='net-lin', net='vgg', use_gpu=True, gpu_ids=[torch.device('cuda:0')]
+        )
+
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
@@ -163,12 +168,19 @@ class GAN2Shape(nn.Module):
 
         # Loss
         # TODO: we could potentially implement these losses ourselves
-        loss_l1_im = PhotometricLoss()(recon_im[:b], inputs, mask=recon_im_mask[:b])  # FIXME: use our loss
-        loss_perc_im = PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
-                                      inputs * recon_im_mask[:b])
+        # loss_l1_im = PhotometricLoss()(recon_im[:b], inputs, mask=recon_im_mask[:b])  # FIXME: use our loss
+        # loss_perc_im = PerceptualLoss(recon_im[:b] * recon_im_mask[:b],
+        #                               inputs * recon_im_mask[:b])
+        # loss_perc_im = torch.mean(loss_perc_im)
+        # loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
+        # loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
+
+        loss_l1_im = utils.photometric_loss(recon_im[:b], inputs, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b], inputs * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
+        loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
+
 
         # TODO: tuple of depth, light, etc. (see step2 for what is needed)
         # if use_mask is false set canon_mask to None
