@@ -109,7 +109,7 @@ class GAN2Shape(nn.Module):
         # it is redundant to pass properties as arguments but improves readability
         loss, collected = getattr(self, f'forward_step{self.step}')(data, self.collected)
         self.collected = collected
-        self.step = ((self.step + 1) % 3) + 1
+        self.step = (self.step % 3) + 1
         return loss
 
     def forward_step1(self, inputs, collected):
