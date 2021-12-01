@@ -17,7 +17,7 @@ class Trainer():
     def fit(self, data, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
         self.pretrain_on_prior(data, plot_depth_map)
-        
+        collected=None
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs
             
@@ -26,18 +26,15 @@ class Trainer():
                 for _ in range(self.refinement_iterations):
                     data_batch = data[i]
                     data_batch = data_batch.cuda()
-                    metrics = self.model.forward(data_batch)
-                    optim.zero_grad()
-                    metrics.backward()
-                    optim.step()
-                    # running_loss += m
+
+                    for num in range(1,3): #Perform each training step
+                        optim.zero_grad()
+                        loss, collected = getattr(self.model, f'forward_step{num}')(data_batch, collected)
+                        loss.backward()
+                        # running_loss += m #FIXME
 
             print(f'Loss: {running_loss}')
 
-        # FIXME: not sure what these are for
-        # self.fit_step1()
-        # self.fit_step2()
-        # self.fit_step3()
         print('Finished Training')
 
     def pretrain_on_prior(self, data, plot_depth_map):

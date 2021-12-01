@@ -34,7 +34,6 @@ class GAN2Shape(nn.Module):
         self.discriminator.eval()
 
         self.image_size = config.get('image_size')
-        self.step = 1
         self.collected = None
         self.prior = self.init_prior_shape("box").cuda()
 
@@ -104,13 +103,6 @@ class GAN2Shape(nn.Module):
             else:
                 return torch.ones([1, height, width])
 
-    def forward(self, data):
-        # call the appropriate step
-        # it is redundant to pass properties as arguments but improves readability
-        loss, collected = getattr(self, f'forward_step{self.step}')(data, self.collected)
-        self.collected = collected
-        self.step = (self.step % 3) + 1
-        return loss
 
     def forward_step1(self, inputs, collected):
         b = 1
@@ -181,20 +173,22 @@ class GAN2Shape(nn.Module):
         loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-
-        # TODO: tuple of depth, light, etc. (see step2 for what is needed)
+        #FIXME include use_mask bool?
+        # if use_mask == false:
         # if use_mask is false set canon_mask to None
-        collected = ...
+        canon_mask=None
+        collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
     def forward_step2(self, data, collected):
+        batch_size = len(data)
         print('Doing step 2')
-        origin_size = data.size[0]
+        origin_size = data.size(0)
         # unpack collected
         normal, light_a, light_b, albedo, depth, canon_mask = collected
 
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(self.batchsize, normal,
+            pseudo_im, mask = self.sample_pseudo_imgs(batch_size, normal,
                                                       light_a, light_b,
                                                       albedo, depth,
                                                       canon_mask)  # FIXME: batchsize?
@@ -215,7 +209,7 @@ class GAN2Shape(nn.Module):
 
     def forward_step3(self, data, collected):
         print('Doing step 3')
-        ...
+        return None, None
 
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
