@@ -8,6 +8,7 @@ z_dim: 512
 gan_ckpt_path: checkpoints/stylegan2/stylegan2-car-config-f.pt
 root_path: data/car
 learning_rate: 0.0001
+view_scale: 1
 
 ## renderer
 rot_center_depth: 1.0

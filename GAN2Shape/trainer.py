@@ -16,10 +16,11 @@ class Trainer():
 
     def fit(self, data, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
-
+        self.pretrain_on_prior(data, plot_depth_map)
+        
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs
-            self.pretrain_on_prior(data, plot_depth_map)
+            
             running_loss = 0.0
             for i in range(len(data)):
                 for _ in range(self.refinement_iterations):

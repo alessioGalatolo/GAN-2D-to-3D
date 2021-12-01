@@ -73,7 +73,7 @@ class GAN2Shape(nn.Module):
 
         view_mvn_path = config.get('view_mvn_path', 'checkpoints/view_light/view_mvn.pth')
         light_mvn_path = config.get('light_mvn_path', 'checkpoints/view_light/light_mvn.pth')
-        self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path)
+        self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, config.get('view_scale'))
 
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
