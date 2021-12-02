@@ -11,6 +11,7 @@ class Trainer():
                  model_config):
         self.model = model(model_config)
         self.n_epochs = model_config.get('n_epochs', 1)
+        self.n_epochs_prior = model_config.get('n_epochs_prior', 1)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.refinement_iterations = model_config.get('refinement_iterations', 4)
 
@@ -41,21 +42,24 @@ class Trainer():
         optim = Trainer.default_optimizer(self.model.depth_net)
         train_loss = []
         print("Pretraining depth net on prior shape")
-        iterator = tqdm(range(len(data)))
-        for i in iterator:
-            data_batch = data[i]
-            inputs = data_batch.cuda()
-            loss = self.model.depth_net_forward(inputs)
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
-            if i % 10 == 0:
-                with torch.no_grad():
-                    iterator.set_description("Loss = " + str(loss.cpu()))
-                    train_loss.append(loss.cpu())
+        iterator = tqdm(range(self.n_epochs_prior))
+        for epoch in iterator:
+            for i in range(len(data)):
+                data_batch = data[i]
+                inputs = data_batch.cuda()
+                loss = self.model.depth_net_forward(inputs)
+                optim.zero_grad()
+                loss.backward()
+                optim.step()
             # scheduler.step()
+            if epoch % 1 == 0:
+                with torch.no_grad():
+                    iterator.set_description("Epoch (prior): " + str(epoch+1) + "/" + \
+                        str(self.n_epochs_prior) + ". Loss = " + str(loss.cpu()))
+                    train_loss.append(loss.cpu())
+                
         # plt.plot(train_loss)
-        # plt.title("Pretrain prior - loss / 10 steps")
+        # plt.title("Pretrain prior - loss / 10 epochs")
         # plt.show()
         if plot_depth_map:
             self.model.plot_predicted_depth_map(data)
