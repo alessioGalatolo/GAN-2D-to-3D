@@ -20,8 +20,7 @@ class Trainer():
         self.pretrain_on_prior(data, plot_depth_map)
         collected=None
         # loop over the dataset multiple times
-        for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs
-            
+        for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs            
             running_loss = 0.0
             for i in range(len(data)):
                 for _ in range(self.refinement_iterations):
@@ -51,16 +50,13 @@ class Trainer():
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
-            # scheduler.step()
+            
             if epoch % 1 == 0:
                 with torch.no_grad():
                     iterator.set_description("Epoch (prior): " + str(epoch+1) + "/" + \
                         str(self.n_epochs_prior) + ". Loss = " + str(loss.cpu()))
                     train_loss.append(loss.cpu())
-                
-        # plt.plot(train_loss)
-        # plt.title("Pretrain prior - loss / 10 epochs")
-        # plt.show()
+
         if plot_depth_map:
             self.model.plot_predicted_depth_map(data)
         return train_loss
@@ -71,13 +67,3 @@ class Trainer():
                                   model.parameters())
         return torch.optim.Adam(depth_net_params, lr=lr,
                                 betas=betas, weight_decay=weight_decay)
-
-    # FIXME: not sure what these are for
-    # def fit_step1(self, data):
-    #     pass
-
-    # def fit_step2(self, data):
-    #     pass
-
-    # def fit_step3(self, data):
-        # pass
