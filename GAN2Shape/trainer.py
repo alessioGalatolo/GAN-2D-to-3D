@@ -17,7 +17,7 @@ class Trainer():
 
     def fit(self, images, latents, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
-        self.pretrain_on_prior(images, plot_depth_map)
+        # self.pretrain_on_prior(images, plot_depth_map)
         collected = None
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs            

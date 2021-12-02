@@ -86,6 +86,7 @@ class GAN2Shape(nn.Module):
         self.perceptual_loss = PerceptualLoss(
             model='net-lin', net='vgg', use_gpu=True, gpu_ids=[torch.device('cuda:0')]
         )
+        self.discr_loss = DiscriminatorLoss(ftr_num=4)
 
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
@@ -227,7 +228,8 @@ class GAN2Shape(nn.Module):
         # projected_image = self.tranformer(projected_image)
 
         self.loss_l1 = utils.photometric_loss(projected_image, pseudo_im, mask=mask)
-        self.loss_rec = DiscriminatorLoss(self.discriminator)(projected_image, pseudo_im, mask=mask)
+
+        self.loss_rec = self.discr_loss(self.discriminator, projected_image, pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
 
