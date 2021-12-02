@@ -1,10 +1,11 @@
 import argparse
 import yaml
+from os import path
 from torchvision import transforms
 from torch import cuda
 from GAN2Shape.trainer import Trainer
 from GAN2Shape.model import GAN2Shape
-from GAN2Shape.dataset import GenericDataset
+from GAN2Shape.dataset import ImageDataset, LatentDataset
 
 
 def main():
@@ -32,10 +33,11 @@ def main():
             ]
         )
     config['transform'] = transform
-    dataset = GenericDataset(config.get('root_path'), transform=transform)
+    images = ImageDataset(config.get('root_path'), transform=transform)
+    latents = LatentDataset(config.get('root_path'))
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config)
-    trainer.fit(dataset, plot_depth_map=False)
+    trainer.fit(images, latents, plot_depth_map=False)
 
 
 if __name__ == "__main__":

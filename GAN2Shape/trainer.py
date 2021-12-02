@@ -14,22 +14,21 @@ class Trainer():
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.refinement_iterations = model_config.get('refinement_iterations', 4)
 
-    def fit(self, data, plot_depth_map=False):
+    def fit(self, images, latents, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
-        self.pretrain_on_prior(data, plot_depth_map)
-        collected=None
+        self.pretrain_on_prior(images, plot_depth_map)
+        collected = None
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs
-            
             running_loss = 0.0
-            for i in range(len(data)):
+            for image_batch, latent_batch in zip(images, latents):
                 for _ in range(self.refinement_iterations):
-                    data_batch = data[i]
-                    data_batch = data_batch.cuda()
+                    image_batch = image_batch.cuda()
+                    latent_batch = latent_batch.cuda()
 
-                    for num in range(1,3): #Perform each training step
+                    for num in range(1, 3):  # Perform each training step
                         optim.zero_grad()
-                        loss, collected = getattr(self.model, f'forward_step{num}')(data_batch, collected)
+                        loss, collected = getattr(self.model, f'forward_step{num}')(image_batch, latent_batch, collected)
                         loss.backward()
                         # running_loss += m #FIXME
 

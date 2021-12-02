@@ -18,10 +18,10 @@ from GAN2Shape import utils
 class GAN2Shape(nn.Module):
     def __init__(self, config):
         super().__init__()
-
+        self.z_dim = config.get('z_dim')
         # Networks
         self.generator = Generator(config.get('gan_size'),
-                                   config.get('z_dim'), 8,
+                                   self.z_dim, 8,
                                    channel_multiplier=config.get('channel_multiplier'))
         self.discriminator = Discriminator(config.get('gan_size'),
                                            channel_multiplier=config.get('channel_multiplier'))
@@ -40,9 +40,9 @@ class GAN2Shape(nn.Module):
         self.lighting_net = networks.LightingNet(self.image_size).cuda()
         self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
         self.depth_net = networks.DepthNet(self.image_size).cuda()
-        self.albedo_net = networks.AlbedoNet(self.image_size).cuda()
-
+        self.albedo_net = networks.AlbedoNet(self.image_size).cuda()        
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size).cuda()
+
         self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
         self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
@@ -59,6 +59,7 @@ class GAN2Shape(nn.Module):
         self.xy_translation_range = config.get('xy_translation_range', 0.1)
         self.z_translation_range = config.get('z_translation_range', 0.1)
         self.use_mask = config.get('use_mask', True)
+        self.relative_encoding = config.get('relative_encoding', False)
         self.transformer = config.get('transformer')
         self.rand_light = config.get('rand_light', [-1, 1, -0.2, 0.8, -0.1, 0.6, -0.6])
         self.truncation = config.get('truncation', 1)
@@ -72,9 +73,10 @@ class GAN2Shape(nn.Module):
 
         view_mvn_path = config.get('view_mvn_path', 'checkpoints/view_light/view_mvn.pth')
         light_mvn_path = config.get('light_mvn_path', 'checkpoints/view_light/light_mvn.pth')
-        self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, config.get('view_scale'))
+        view_scale = config.get('view_scale', 1)
+        self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
-        #Loss functions
+        # Loss functions
         self.perceptual_loss = PerceptualLoss(
             model='net-lin', net='vgg', use_gpu=True, gpu_ids=[torch.device('cuda:0')]
         )
@@ -103,14 +105,13 @@ class GAN2Shape(nn.Module):
             else:
                 return torch.ones([1, height, width])
 
-
-    def forward_step1(self, inputs, collected):
+    def forward_step1(self, images, latents, collected):
         b = 1
         h, w = self.image_size, self.image_size
         print('Doing step 1')
 
         # Depth
-        depth_raw = self.depth_net(inputs)
+        depth_raw = self.depth_net(images)
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.rescale_depth(depth)
@@ -121,7 +122,7 @@ class GAN2Shape(nn.Module):
         # TODO: add flips?
 
         # Viewpoint
-        view = self.viewpoint_net(inputs)
+        view = self.viewpoint_net(images)
         # TODO: add mean and flip?
         view_trans = torch.cat([
             view[:, :3] * math.pi/180 * self.xyz_rotation_range,
@@ -130,11 +131,11 @@ class GAN2Shape(nn.Module):
         self.renderer.set_transform_matrices(view_trans)
 
         # Albedo
-        albedo = self.albedo_net(inputs)
+        albedo = self.albedo_net(images)
         # TODO: add flips?
 
         # Lighting
-        lighting = self.lighting_net(inputs)
+        lighting = self.lighting_net(images)
         lighting_a = lighting[:, :1] / 2+0.5  # ambience term
         lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
         lighting_dxy = lighting[:, 2:]
@@ -149,6 +150,7 @@ class GAN2Shape(nn.Module):
 
         recon_depth = self.renderer.warp_canon_depth(depth)
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
+        # FIXME: why is above var not used?
 
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
         margin = (self.max_depth - self.min_depth) / 2
@@ -167,8 +169,8 @@ class GAN2Shape(nn.Module):
         # loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
         # loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-        loss_l1_im = utils.photometric_loss(recon_im[:b], inputs, mask=recon_im_mask[:b])
-        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b], inputs * recon_im_mask[:b])
+        loss_l1_im = utils.photometric_loss(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b], images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = utils.smooth_loss(depth) + utils.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
@@ -176,14 +178,15 @@ class GAN2Shape(nn.Module):
         #FIXME include use_mask bool?
         # if use_mask == false:
         # if use_mask is false set canon_mask to None
-        canon_mask=None
+        canon_mask = None
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, data, collected):
-        batch_size = len(data)
+    def forward_step2(self, images, latents, collected):
+        batch_size = len(images)
+        F1_d = 2  # FIXME
         print('Doing step 2')
-        origin_size = data.size(0)
+        origin_size = images.size(0)
         # unpack collected
         normal, light_a, light_b, albedo, depth, canon_mask = collected
 
@@ -191,15 +194,33 @@ class GAN2Shape(nn.Module):
             pseudo_im, mask = self.sample_pseudo_imgs(batch_size, normal,
                                                       light_a, light_b,
                                                       albedo, depth,
-                                                      canon_mask)  # FIXME: batchsize?
+                                                      canon_mask)
 
+            gan_im, _ = self.generator([latents], input_is_w=True,
+                                       truncation_latent=self.mean_latent,
+                                       truncation=self.truncation, randomize_noise=False)
+            gan_im = gan_im.clamp(min=-1, max=1)
+            gan_im = utils.resize(gan_im, [origin_size, origin_size])
+            # gan_im = utils.crop(gan_im, self.crop)
+            gan_im = utils.resize(gan_im, [self.image_size, self.image_size])
+            # gan_im = transforms.ToPILImage()(gan_im)
+            # gan_im = transforms.Resize(origin_size)(gan_im)
+            # gan_im = self.tranformer(gan_im)
+            center_w = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda())
+            center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(), depth=8-F1_d)
+
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h)
         projected_image, offset = self.generator.invert(pseudo_im,
+                                                        latent_projection,
                                                         self.truncation,
                                                         self.mean_latent)
-        projected_image = transforms.Resize(origin_size)
-        projected_image = self.tranformer(projected_image)
+        projected_image = utils.resize(projected_image, [origin_size, origin_size])
+        # projected_image = utils.crop(projected_image, self.crop)
+        projected_image = utils.resize(projected_image, [self.image_size, self.image_size])
+        # projected_image = transforms.Resize(origin_size)(projected_image)
+        # projected_image = self.tranformer(projected_image)
 
-        self.loss_l1 = PhotometricLoss()(projected_image, pseudo_im, mask=mask)
+        self.loss_l1 = utils.photometric_loss(projected_image, pseudo_im, mask=mask)
         self.loss_rec = DiscriminatorLoss(self.discriminator)(projected_image, pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
@@ -207,7 +228,7 @@ class GAN2Shape(nn.Module):
         collected = projected_image.cpu(), mask.cpu()
         return loss_total, collected
 
-    def forward_step3(self, data, collected):
+    def forward_step3(self, images, latents, collected):
         print('Doing step 3')
         return None, None
 
@@ -224,6 +245,16 @@ class GAN2Shape(nn.Module):
             ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
                             linewidth=0, antialiased=False)
             plt.show()
+
+    def latent_projection(self, image, gan_im, latent, center_w, center_h):
+        F1_d = 2  # FIXME: don't know what this is for
+        offset = self.offset_encoder_net(image)
+        if self.relative_encoding:
+            offset = offset - self.offset_encoder_net(gan_im)
+        hidden = offset + center_h
+        offset = self.generator.style_forward(hidden, skip=8-F1_d) - center_w
+        latent = latent + offset
+        return offset, latent
 
     def sample_pseudo_imgs(self, batchsize, normal, light_a, light_b, albedo, depth, canon_mask=None):
         b, h, w = batchsize, self.image_size, self.image_size
