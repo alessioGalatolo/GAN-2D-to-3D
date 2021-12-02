@@ -1,18 +1,24 @@
 import math
-from torchvision import transforms
+import numpy as np
+
+from matplotlib import cm
+import matplotlib.pyplot as plt
+
 from tqdm import tqdm
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib import cm
-from GAN2Shape.stylegan2 import Generator, Discriminator
+
+from torchvision import transforms
+
+from GAN2Shape import utils
 from GAN2Shape import networks
 from GAN2Shape.renderer import Renderer
+from GAN2Shape.stylegan2 import Generator, Discriminator
 from GAN2Shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
-from GAN2Shape import utils
+
 
 
 class GAN2Shape(nn.Module):
