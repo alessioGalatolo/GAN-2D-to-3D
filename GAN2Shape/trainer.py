@@ -27,9 +27,9 @@ class Trainer():
                     data_batch = data[i]
                     data_batch = data_batch.cuda()
 
-                    for num in range(1,3): #Perform each training step
+                    for step in range(1,4): #Perform each training step
                         optim.zero_grad()
-                        loss, collected = getattr(self.model, f'forward_step{num}')(data_batch, collected)
+                        loss, collected = getattr(self.model, f'forward_step{step}')(data_batch, collected)
                         loss.backward()
                         # running_loss += m #FIXME
 
