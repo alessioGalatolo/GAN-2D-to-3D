@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 class Trainer():
     def __init__(self,
                  model,
-                 model_config):
-        self.model = model(model_config)
+                 model_config,
+                 debug=False):
+        self.model = model(model_config, debug)
         self.n_epochs = model_config.get('n_epochs', 1)
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1)
         self.learning_rate = model_config.get('learning_rate', 1e-4)

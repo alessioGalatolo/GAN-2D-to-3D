@@ -21,9 +21,10 @@ from GAN2Shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss,
 
 
 class GAN2Shape(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, debug=False):
         super().__init__()
         self.z_dim = config.get('z_dim')
+        self.debug = debug
         # Networks
         self.generator = Generator(config.get('gan_size'),
                                    self.z_dim, 8,
@@ -42,10 +43,10 @@ class GAN2Shape(nn.Module):
         self.collected = None
         self.prior = self.init_prior_shape("box").cuda()
 
-        self.lighting_net = networks.LightingNet(self.image_size).cuda()
-        self.viewpoint_net = networks.ViewpointNet(self.image_size).cuda()
-        self.depth_net = networks.DepthNet(self.image_size).cuda()
-        self.albedo_net = networks.AlbedoNet(self.image_size).cuda()        
+        self.lighting_net = networks.LightingNet(self.image_size, self.debug).cuda()
+        self.viewpoint_net = networks.ViewpointNet(self.image_size, self.debug).cuda()
+        self.depth_net = networks.DepthNet(self.image_size, self.debug).cuda()
+        self.albedo_net = networks.AlbedoNet(self.image_size, self.debug).cuda()        
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size).cuda()
 
         self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
@@ -180,7 +181,12 @@ class GAN2Shape(nn.Module):
         print('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
-        normal, light_a, light_b, albedo, depth, canon_mask = collected
+        # I realized we need to detach them from the computational graph in step 2
+        *tensors, canon_mask = collected
+        for t in tensors:
+            t.detach()
+        normal, light_a, light_b, albedo, depth = tensors
+
 
         with torch.no_grad():
             pseudo_im, mask = self.sample_pseudo_imgs(batch_size, normal,

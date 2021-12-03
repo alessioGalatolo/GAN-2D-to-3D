@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from GAN2Shape.resnet import resnet50, resnet101, resnet152
+from GAN2Shape.debug_grad_updates import *
 """
 Network dependencies for the networks in arxiv/2011.00844.
 
@@ -48,20 +49,28 @@ class Encoder(nn.Module):
 
 
 class ViewpointNet(Encoder):
-    def __init__(self, image_size):
+    def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=6, size=image_size)
+        self.debug = debug
+        self.alert_func = Alert_View()
 
     def forward(self, x):
         out = super().forward(input=x)
+        if self.debug:
+            out = self.alert_func.apply(out)
         return out
 
 
 class LightingNet(Encoder):
-    def __init__(self, image_size):
+    def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=4, size=image_size)
-
+        self.debug = debug
+        self.alert_func = Alert_Light()
     def forward(self, x):
-        return super().forward(input=x)
+        out = super().forward(input=x)
+        if self.debug:
+            out = self.alert_func.apply(out)
+        return out
 
 
 class EncoderDecoder(nn.Module):
@@ -130,19 +139,28 @@ class EncoderDecoder(nn.Module):
 
 
 class DepthNet(EncoderDecoder):
-    def __init__(self, image_size):
+    def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=1, size=image_size, activation=None)
-
+        self.debug = debug
+        self.alert_func = Alert_Depth()
     def forward(self, x):
-        return super().forward(input=x)
+        out = super().forward(input=x)
+        if self.debug:
+            out = self.alert_func.apply(out)
+        return out
 
 
 class AlbedoNet(EncoderDecoder):
-    def __init__(self, image_size):
+    def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=3, size=image_size, activation=nn.Tanh)
+        self.debug = debug
+        self.alert_func = Alert_Albedo()
 
     def forward(self, x):
-        return super().forward(input=x)
+        out = super().forward(input=x)
+        if self.debug:
+            out = self.alert_func.apply(out)
+        return out
 
 
 class ResBlock(nn.Module):
