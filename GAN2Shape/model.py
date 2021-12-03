@@ -111,8 +111,9 @@ class GAN2Shape(nn.Module):
         h, w = self.image_size, self.image_size
         print('Doing step 1')
 
+        
         # Depth
-        depth_raw = self.depth_net(images)
+        depth_raw = self.depth_net(images).detach()
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.rescale_depth(depth)
@@ -123,7 +124,7 @@ class GAN2Shape(nn.Module):
         # TODO: add flips?
 
         # Viewpoint
-        view = self.viewpoint_net(images)
+        view = self.viewpoint_net(images).detach()
         # TODO: add mean and flip?
         view_trans = torch.cat([
             view[:, :3] * math.pi/180 * self.xyz_rotation_range,
@@ -135,18 +136,20 @@ class GAN2Shape(nn.Module):
         albedo = self.albedo_net(images)
         # TODO: add flips?
 
+        
         # Lighting
-        lighting = self.lighting_net(images)
+        lighting = self.lighting_net(images).detach()
         lighting_a = lighting[:, :1] / 2+0.5  # ambience term
         lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
         lighting_dxy = lighting[:, 2:]
         lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0), 1).cuda()], 1)
         lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
-
-        # Shading
+        
+        # Shading                 
         normal = self.renderer.get_normal_from_depth(depth)
         diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
         shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
+
         texture = (albedo/2+0.5) * shading * 2 - 1
 
         recon_depth = self.renderer.warp_canon_depth(depth)
@@ -224,81 +227,8 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
-        """
-        What needs to happen:
-        (Learning the 3D shape)
-
-          -  include the orginial image among the samples to train on:
-             samples = [original image, projected samples]
-
-          -  for each sample I-tilde_i:
-
-                 the networks
-                     viewpoint net V
-                     lighting net L
-                 predict the instance-specific
-                     view v-tilde_i
-                     lighting l-tilde_i
-
-                 the networks
-                     depth net D
-                     albedo net A
-                 with input: original sample I
-                 output: the shared
-                     depth v-tilde
-                     albedo a-tilde
-
-                 feed all of this into the reconstruction loss,
-                 whatever it may be, and optimize for the \theta's.
-
-                 with m=batch size?
-                 and \lambda_2 as the regularization coefficient.
-
-          -  anything to return?
-        """
-
         print('Doing step 3')
-
-        I = images  # assuming that "images" is actually just one image at a time in the trainer.py loop
-        projected_samples, masks = collected  # assuming forward_step2() returns a list of size m of images
-        samples = [I, *projected_samples]  # FIXME: Unpacking will probably not work out of the box like this
-
-        batch_size = len(samples)
-
-        losses = []
-
-        d = self.depth_net(I)   # D(I)
-        a = self.albedo_net(I)  # A(I)
-
-        # FIXME: Add a mask for I to the masks list for the zip to work!
-        # What mask would be appropriate for the orginial image I?
-        for i, mask in zip(samples, masks):
-            l = self.lighting_net(i)   # L(i)
-            v = self.viewpoint_net(i)  # V(i)
-
-            # FIXME: Feed the renderer a sensible image
-            # as opposed to just `l` (in case `l` is not an image)
-            i_rendered, _ = self.renderer.render_given_view(
-                                l,
-                                d.expand(b, h, w),  # FIXME: just filling in mindlessly for now -- probably wrong
-                                view=v,
-                                mask=mask,
-                                grid_sample=True)
-
-            # FIXME: define and/or use the proper reconstruction_loss
-            # FIXME: Make sure that what you are appending to `losses` is a number
-            # or at least something summable using sum()
-            losses.append(reconstruction_loss(i, i_rendered))
-
-        loss_total = (1 / batch_size) * sum(losses) + self.lam_smooth * SmoothLoss()(d)
-
-        # FIXME: use the optimizer correctly, or drop the line below completely in case the optim.step() function
-        # would already be taking care of updating the theta parameters until the argmin converged/stoped
-        # The thetas are the parameters (weights) of each of the 4 networks
-        theta_D, theta_A, theta_V, theta_L = argmin(loss_total, {'params': [theta_D, theta_A, theta_V, theta_L]})
-
-        collected = None
-        return loss_total, collected
+        return None, None
 
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
