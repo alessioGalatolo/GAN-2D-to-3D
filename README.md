@@ -5,11 +5,14 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 ```
 sudo apt update
 sudo apt install build-essential
-
-#CUDA toolkit
+```
+```
+# CUDA toolkit
 wget https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
 sudo sh cuda_10.2.89_440.33.01_linux.run
-
+```
+```
+# Install Conda
 curl -LO https://repo.anaconda.com/miniconda/Miniconda3-py39_4.10.3-Linux-x86_64.sh
 sh Miniconda3-py39_4.10.3-Linux-x86_64.sh 
 ```
@@ -19,13 +22,13 @@ conda create --name 3D-GAN pytorch==1.2.0 torchvision==0.4.0 cudatoolkit=10.0 -c
 conda activate 3D-GAN
 ```
 ```
-#install neural renderer
+# Install neural renderer
 git clone https://github.com/daniilidis-group/neural_renderer.git
 cd neural_renderer
 python setup.py install
 ```
 ```
-#install all other dependencies
+# Install all other dependencies
 conda install numpy pandas distributed ipython lmdb matplotlib Pillow scipy tqdm scikit-image
 conda install wandb PyYAML -c conda-forge
 ```
