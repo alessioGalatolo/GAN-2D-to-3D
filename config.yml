@@ -1,5 +1,5 @@
 n_workers: 0
-n_epochs: 1
+n_epochs: 10
 n_epochs_prior: 1000
 batch_size: 164
 gan_size: 512

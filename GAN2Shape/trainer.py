@@ -19,13 +19,17 @@ class Trainer():
     def fit(self, images, latents, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
         # self.pretrain_on_prior(images, plot_depth_map)
-        
+
         self.reconstructions = {'images':[None] * len(images), 'depths':[None] * len(images)}
         collected = None
         # loop over the dataset multiple times
         for epoch in tqdm(range(self.n_epochs)):  # FIXME: not sure if what they call epochs are actually epochs            
             running_loss = 0.0
-            for i_batch in range(len(images)):
+            iterator = tqdm(range(len(images)))
+            for i_batch in iterator:
+                iterator.set_description("Epoch: " + str(epoch) + "/" +
+                                    str(self.n_epochs) + ". Image: " + str(i_batch+1) + "/" +
+                                    str(len(images)) + ".")
                 for _ in range(self.refinement_iterations):
                     image_batch = images[i_batch].cuda()
                     latent_batch = latents[i_batch].cuda()
