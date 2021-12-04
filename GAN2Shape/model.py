@@ -247,21 +247,29 @@ class GAN2Shape(nn.Module):
         batch_size = len(samples)
 
         b, h, w = projected_samples[0].shape
-        losses = []
+
+        # Depth
+        depth = self.depth_net(images)   # D(I)
 
         # View
         view = self.viewpoint_net(images)  # V(i)
-        view_trans = torch.cat([
-            view[:, :3] * math.pi/180 * self.xyz_rotation_range,
-            view[:, 3:5] * self.xy_translation_range,
-            view[:, 5:] * self.z_translation_range], 1)
+        view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
-        depth = self.depth_net(images)   # D(I)
-        albedo = self.albedo_net(images)  # A(I)
+        # Lighting
         light = self.lighting_net(images)   # L(i)
+        light_a, light_b, light_d = self.get_lighting_directions(light)
 
+        # Albedo
+        albedo = self.albedo_net(images)  # A(I)
 
+        # Shading
+        normal = self.renderer.get_normal_from_depth(depth)
+        diffuse_shading, texture = self.get_shading(normal, light_a, 
+                                        light_b, light_d, albedo)
+        
+        
+        losses = []
 
         # FIXME: Feed the renderer a sensible image
         # as opposed to just `l` (in case `l` is not an image)
