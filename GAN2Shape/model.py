@@ -115,7 +115,7 @@ class GAN2Shape(nn.Module):
         # TODO: add flips?
         with torch.no_grad():
             depth_raw = self.depth_net(images)
-        depth, depth_centered, depth_border = self.get_clamped_depth(depth_raw)        
+        depth, depth_centered, depth_border = self.get_clamped_depth(depth_raw, h, w)
 
         # Viewpoint
         with torch.no_grad():
@@ -363,7 +363,7 @@ class GAN2Shape(nn.Module):
         view[:, 5:] * self.z_translation_range], 1)
         return view_trans
 
-    def get_clamped_depth(self, depth_raw):
+    def get_clamped_depth(self, depth_raw, h, w):
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.rescale_depth(depth)
@@ -381,7 +381,7 @@ class GAN2Shape(nn.Module):
         lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
         return lighting_a, lighting_b, lighting_d
     
-    def get_shading(normal, lighting_a, lighting_b, lighting_d, albedo):
+    def get_shading(self, normal, lighting_a, lighting_b, lighting_d, albedo):
         diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
         shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
         texture = (albedo/2+0.5) * shading * 2 - 1
