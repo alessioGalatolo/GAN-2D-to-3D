@@ -196,11 +196,13 @@ class OffsetEncoder(nn.Module):
     See Table 7 in arxiv/2011.00844.
     """
 
-    def __init__(self, image_size=128, cin=3, cout=512, activation=None):
+    def __init__(self, image_size=128, cin=3, cout=512, activation=None, debug=False):
         super().__init__()
         allowed_sizes = [64, 128]
         assert(image_size in allowed_sizes)
         nf = 16  # should this be an input param?
+        self.debug = debug
+        self.alert_func = Alert_OffsetEncoder()
 
         network_part1 = [
             nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1),  # the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
@@ -229,7 +231,10 @@ class OffsetEncoder(nn.Module):
 
     def forward(self, x):
         # The authors do a reshape here for whatever reason
-        return self.network(x).reshape(x.size(0), -1)
+        out = self.network(x).reshape(x.size(0), -1)
+        if self.debug:
+            out = self.alert_func.apply(out)
+        return out
         # return self.network(x)
 
 

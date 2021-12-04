@@ -47,7 +47,7 @@ class GAN2Shape(nn.Module):
         self.viewpoint_net = networks.ViewpointNet(self.image_size, self.debug).cuda()
         self.depth_net = networks.DepthNet(self.image_size, self.debug).cuda()
         self.albedo_net = networks.AlbedoNet(self.image_size, self.debug).cuda()        
-        self.offset_encoder_net = networks.OffsetEncoder(self.image_size).cuda()
+        self.offset_encoder_net = networks.OffsetEncoder(self.image_size, debug=self.debug).cuda()
 
         self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
@@ -110,47 +110,33 @@ class GAN2Shape(nn.Module):
         b = 1
         h, w = self.image_size, self.image_size
         print('Doing step 1')
-
         
         # Depth
-        depth_raw = self.depth_net(images).detach()
-        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-        depth = torch.tanh(depth_centered).squeeze(0)
-        depth = self.rescale_depth(depth)
-        # TODO: add border clamping
-        depth_border = torch.zeros(1, h, w-4).cuda()
-        depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
-        depth = depth*(1-depth_border) + depth_border * self.border_depth
         # TODO: add flips?
+        with torch.no_grad():
+            depth_raw = self.depth_net(images)
+        depth, depth_centered, depth_border = self.get_clamped_depth(depth_raw)        
 
         # Viewpoint
-        view = self.viewpoint_net(images).detach()
+        with torch.no_grad():
+            view = self.viewpoint_net(images)
         # TODO: add mean and flip?
-        view_trans = torch.cat([
-            view[:, :3] * math.pi/180 * self.xyz_rotation_range,
-            view[:, 3:5] * self.xy_translation_range,
-            view[:, 5:] * self.z_translation_range], 1)
+        view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Albedo
         albedo = self.albedo_net(images)
         # TODO: add flips?
-
         
         # Lighting
-        lighting = self.lighting_net(images).detach()
-        lighting_a = lighting[:, :1] / 2+0.5  # ambience term
-        lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
-        lighting_dxy = lighting[:, 2:]
-        lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0), 1).cuda()], 1)
-        lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
+        with torch.no_grad():
+            lighting = self.lighting_net(images)
+        lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
         
         # Shading                 
         normal = self.renderer.get_normal_from_depth(depth)
-        diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
-        shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
-
-        texture = (albedo/2+0.5) * shading * 2 - 1
+        diffuse_shading, texture = self.get_shading(normal, lighting_a, 
+                                        lighting_b, lighting_d, albedo)
 
         recon_depth = self.renderer.warp_canon_depth(depth)
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
@@ -185,6 +171,7 @@ class GAN2Shape(nn.Module):
         origin_size = images.size(0)
         # unpack collected
         # I realized we need to detach them from the computational graph in step 2
+        # Edit: doesn't seem necessary after all
         *tensors, canon_mask = collected
         for t in tensors:
             t.detach()
@@ -223,7 +210,7 @@ class GAN2Shape(nn.Module):
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
 
-        collected = projected_image.cpu(), mask.cpu()
+        collected = projected_image, mask
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
@@ -254,36 +241,42 @@ class GAN2Shape(nn.Module):
           -  anything to return?
         """
         
-        I = images  # assuming that "images" is actually just one image at a time in the trainer.py loop
-        projected_samples, masks = collected  # assuming forward_step2() returns a list of size m of images
-        samples = [I, *projected_samples]  # FIXME: Unpacking will probably not work out of the box like this
-
+        # Let's assume images is a batch of dimensions (batch_size, 3, 128, 128)
+        projected_samples, masks = collected
+        samples = torch.cat((images, projected_samples), dim = 0)
         batch_size = len(samples)
 
+        b, h, w = projected_samples[0].shape
         losses = []
 
-        d = self.depth_net(I)   # D(I)
-        a = self.albedo_net(I)  # A(I)
+        # View
+        view = self.viewpoint_net(images)  # V(i)
+        view_trans = torch.cat([
+            view[:, :3] * math.pi/180 * self.xyz_rotation_range,
+            view[:, 3:5] * self.xy_translation_range,
+            view[:, 5:] * self.z_translation_range], 1)
+        self.renderer.set_transform_matrices(view_trans)
 
-        # FIXME: Add a mask for I to the masks list for the zip to work!
-        # What mask would be appropriate for the orginial image I?
-        for i, mask in zip(samples, masks):
-            l = self.lighting_net(i)   # L(i)
-            v = self.viewpoint_net(i)  # V(i)
+        depth = self.depth_net(images)   # D(I)
+        albedo = self.albedo_net(images)  # A(I)
+        light = self.lighting_net(images)   # L(i)
 
-            # FIXME: Feed the renderer a sensible image
-            # as opposed to just `l` (in case `l` is not an image)
-            i_rendered, _ = self.renderer.render_given_view(
-                                l,
-                                d.expand(b, h, w),  # FIXME: just filling in mindlessly for now -- probably wrong
-                                view=v,
-                                mask=mask,
-                                grid_sample=True)
 
-            # FIXME: define and/or use the proper reconstruction_loss
-            # FIXME: Make sure that what you are appending to `losses` is a number
-            # or at least something summable using sum()
-            losses.append(reconstruction_loss(i, i_rendered))
+
+        # FIXME: Feed the renderer a sensible image
+        # as opposed to just `l` (in case `l` is not an image)
+        i_rendered, _ = self.renderer.render_given_view(
+                            l,
+                            d.expand(b, h, w),  # FIXME: just filling in mindlessly for now -- probably wrong
+                            view=v,
+                            mask=mask,
+                            grid_sample=True)
+
+        # FIXME: define and/or use the proper reconstruction_loss
+        # FIXME: Make sure that what you are appending to `losses` is a number
+        # or at least something summable using sum()
+        losses.append(reconstruction_loss(im, i_rendered))
+
 
         loss_total = (1 / batch_size) * sum(losses) + self.lam_smooth * SmoothLoss()(d)
 
@@ -355,6 +348,37 @@ class GAN2Shape(nn.Module):
         pseudo_im, mask = pseudo_im, mask[:, 0, None, ...]
         return pseudo_im.clamp(min=-1, max=1), mask.contiguous()
 
+    def get_view_transformation(self, view):
+        view_trans = torch.cat([
+        view[:, :3] * math.pi/180 * self.xyz_rotation_range,
+        view[:, 3:5] * self.xy_translation_range,
+        view[:, 5:] * self.z_translation_range], 1)
+        return view_trans
+
+    def get_clamped_depth(self, depth_raw):
+        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+        depth = torch.tanh(depth_centered).squeeze(0)
+        depth = self.rescale_depth(depth)
+        # TODO: add border clamping
+        depth_border = torch.zeros(1, h, w-4).cuda()
+        depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
+        depth = depth*(1-depth_border) + depth_border * self.border_depth
+        return depth, depth_centered, depth_border
+
+    def get_lighting_directions(self, lighting):
+        lighting_a = lighting[:, :1] / 2+0.5  # ambience term
+        lighting_b = lighting[:, 1:2] / 2+0.5  # diffuse term
+        lighting_dxy = lighting[:, 2:]
+        lighting_d = torch.cat([lighting_dxy, torch.ones(lighting.size(0), 1).cuda()], 1)
+        lighting_d = lighting_d / ((lighting_d**2).sum(1, keepdim=True))**0.5  # diffuse light direction
+        return lighting_a, lighting_b, lighting_d
+    
+    def get_shading(normal, lighting_a, lighting_b, lighting_d, albedo):
+        diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
+        shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
+        texture = (albedo/2+0.5) * shading * 2 - 1
+        return diffuse_shading, texture
+
 
 class ViewLightSampler():
     def __init__(self, view_mvn_path, light_mvn_path, view_scale):
@@ -379,3 +403,4 @@ class ViewLightSampler():
             samples.append(self._sample(sample_type))
         samples = torch.cat(samples, dim=0)
         return samples
+

@@ -38,3 +38,9 @@ class Alert_Albedo(AlertGradUpdate):
     def backward(ctx, grad_output):
         print(">>>Albedo grads updated<<<")
         return grad_output, None
+        
+class Alert_OffsetEncoder(AlertGradUpdate):
+    @staticmethod
+    def backward(ctx, grad_output):
+        print(">>>OffsetEncoder grads updated<<<")
+        return grad_output, None
