@@ -115,7 +115,7 @@ class GAN2Shape(nn.Module):
         # TODO: add flips?
         with torch.no_grad():
             depth_raw = self.depth_net(images)
-        depth, depth_centered, depth_border = self.get_clamped_depth(depth_raw, h, w)
+        depth = self.get_clamped_depth(depth_raw, h, w)
 
         # Viewpoint
         with torch.no_grad():
@@ -371,7 +371,7 @@ class GAN2Shape(nn.Module):
         depth_border = torch.zeros(1, h, w-4).cuda()
         depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
         depth = depth*(1-depth_border) + depth_border * self.border_depth
-        return depth, depth_centered, depth_border
+        return depth
 
     def get_lighting_directions(self, lighting):
         lighting_a = lighting[:, :1] / 2+0.5  # ambience term
