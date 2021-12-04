@@ -82,6 +82,11 @@ class GAN2Shape(nn.Module):
         view_scale = config.get('view_scale', 1)
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
+        # Losses
+        self.photo_loss = PhotometricLoss()
+        self.percep_loss = PerceptualLoss()
+        self.smooth_loss = SmoothLoss()
+
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
@@ -151,10 +156,10 @@ class GAN2Shape(nn.Module):
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = PhotometricLoss()(recon_im[:b], images, mask=recon_im_mask[:b])
-        loss_perc_im = PerceptualLoss()(recon_im[:b] * recon_im_mask[:b], images * recon_im_mask[:b])
+        loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b], images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
+        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         #FIXME include use_mask bool?
@@ -244,12 +249,13 @@ class GAN2Shape(nn.Module):
         # Let's assume images is a batch of dimensions (batch_size, 3, 128, 128)
         projected_samples, masks = collected
         samples = torch.cat((images, projected_samples), dim = 0)
-        batch_size = len(samples)
-
-        b, h, w = projected_samples[0].shape
+        # batch_size = len(samples)
+        b = 1
+        _, h, w = projected_samples[0].shape     
 
         # Depth
-        depth = self.depth_net(images)   # D(I)
+        depth_raw = self.depth_net(images)   # D(I)
+        depth = self.get_clamped_depth(depth_raw, h, w)
 
         # View
         view = self.viewpoint_net(images)  # V(i)
@@ -268,32 +274,24 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, light_a, 
                                         light_b, light_d, albedo)
         
+        recon_depth = self.renderer.warp_canon_depth(depth)
+        grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
+        margin = (self.max_depth - self.min_depth) / 2
+
+        # invalid border pixels have been clamped at max_depth+margin
+        recon_im_mask = (recon_depth < self.max_depth+margin).float()
+        recon_im_mask = recon_im_mask.unsqueeze(1).detach()
+        recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
         
-        losses = []
+        # Loss
+        loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b], images * recon_im_mask[:b])
+        loss_perc_im = torch.mean(loss_perc_im)
+        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
+        loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-        # FIXME: Feed the renderer a sensible image
-        # as opposed to just `l` (in case `l` is not an image)
-        i_rendered, _ = self.renderer.render_given_view(
-                            l,
-                            d.expand(b, h, w),  # FIXME: just filling in mindlessly for now -- probably wrong
-                            view=v,
-                            mask=mask,
-                            grid_sample=True)
-
-        # FIXME: define and/or use the proper reconstruction_loss
-        # FIXME: Make sure that what you are appending to `losses` is a number
-        # or at least something summable using sum()
-        losses.append(reconstruction_loss(im, i_rendered))
-
-
-        loss_total = (1 / batch_size) * sum(losses) + self.lam_smooth * SmoothLoss()(d)
-
-        # FIXME: use the optimizer correctly, or drop the line below completely in case the optim.step() function
-        # would already be taking care of updating the theta parameters until the argmin converged/stoped
-        # The thetas are the parameters (weights) of each of the 4 networks
-        theta_D, theta_A, theta_V, theta_L = argmin(loss_total, {'params': [theta_D, theta_A, theta_V, theta_L]})
-
-        collected = None
+        # FIXME: what should step 3 return?
+        collected = (recon_im.detach().cpu(), recon_depth.detach().cpu())
         return loss_total, collected
 
     def plot_predicted_depth_map(self, data, img_idx=0):
