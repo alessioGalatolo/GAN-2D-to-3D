@@ -12,3 +12,6 @@ torch==1.10.0
 torchvision==0.11.1
 tqdm==4.62.3
 wandb==0.12.7
+
+#conda install numpy pandas distributed ipython lmdb matplotlib Pillow scipy tqdm scikit-image
+#conda install wandb PyYAML -c conda-forge

@@ -39,7 +39,7 @@ def main():
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config, debug=False)
 
-    plot_originals(images)
+    # plot_originals(images)
     trainer.fit(images, latents, plot_depth_map=False)
     plot_reconstructions(trainer.reconstructions)
 

@@ -90,6 +90,8 @@ class GAN2Shape(nn.Module):
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
+    #FIXME: why is this here and not inside the depth net class?
+    # + I think it's unused
     def depth_net_forward(self, inputs):
         depth_raw = self.depth_net(inputs)
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
@@ -217,7 +219,7 @@ class GAN2Shape(nn.Module):
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
 
-        collected = projected_image, mask
+        collected = projected_image.detach(), mask
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
@@ -251,26 +253,27 @@ class GAN2Shape(nn.Module):
         
         # Let's assume images is a batch of dimensions (batch_size, 3, 128, 128)
         projected_samples, masks = collected
-        samples = torch.cat((images, projected_samples), dim = 0)
+        # projected_samples = projected_samples.detach()
+        # samples = torch.cat((images, projected_samples), dim = 0)
         # batch_size = len(samples)
         b = 1
-        _, h, w = projected_samples[0].shape     
+        _, h, w = projected_samples[0].shape
 
         # Depth
-        depth_raw = self.depth_net(images)   # D(I)
+        depth_raw = self.depth_net(projected_samples)   # D(I)
         depth = self.get_clamped_depth(depth_raw, h, w)
 
         # View
-        view = self.viewpoint_net(images)  # V(i)
+        view = self.viewpoint_net(projected_samples)  # V(i)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
-        light = self.lighting_net(images)   # L(i)
+        light = self.lighting_net(projected_samples)   # L(i)
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
         # Albedo
-        albedo = self.albedo_net(images)  # A(I)
+        albedo = self.albedo_net(projected_samples)  # A(I)
 
         # Shading
         normal = self.renderer.get_normal_from_depth(depth)
@@ -287,8 +290,8 @@ class GAN2Shape(nn.Module):
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
         
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
-        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b], images * recon_im_mask[:b])
+        loss_l1_im = self.photo_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
+        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b], projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
