@@ -114,7 +114,8 @@ class GAN2Shape(nn.Module):
     def forward_step1(self, images, latents, collected):
         b = 1
         h, w = self.image_size, self.image_size
-        print('Doing step 1')
+        if self.debug:
+            print('Doing step 1')
         
         # Depth
         # TODO: add flips?
@@ -172,7 +173,8 @@ class GAN2Shape(nn.Module):
     def forward_step2(self, images, latents, collected):
         batch_size = len(images)
         F1_d = 2  # FIXME
-        print('Doing step 2')
+        if self.debug:
+            print('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
         # I realized we need to detach them from the computational graph in step 2
@@ -219,7 +221,8 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
-        print('Doing step 3')
+        if self.debug:
+            print('Doing step 3')
         """
         What needs to happen:
         (Learning the 3D shape)

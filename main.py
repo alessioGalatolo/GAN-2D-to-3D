@@ -6,7 +6,7 @@ from torch import cuda
 from GAN2Shape.trainer import Trainer
 from GAN2Shape.model import GAN2Shape
 from GAN2Shape.dataset import ImageDataset, LatentDataset
-
+from plotting import *
 
 def main():
     parser = argparse.ArgumentParser(description='Run a GAN 2D to 3D shape')
@@ -32,12 +32,20 @@ def main():
                 transforms.ToTensor()
             ]
         )
+
     config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration
-    trainer = Trainer(model=GAN2Shape, model_config=config, debug=True)
+    trainer = Trainer(model=GAN2Shape, model_config=config, debug=False)
+
+    plot_originals(images)
     trainer.fit(images, latents, plot_depth_map=False)
+    plot_reconstructions(trainer.reconstructions)
+
+    return
+
+
 
 
 if __name__ == "__main__":
