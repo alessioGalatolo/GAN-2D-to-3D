@@ -37,12 +37,10 @@ def main():
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration
-    trainer = Trainer(model=GAN2Shape, model_config=config, debug=False)
+    trainer = Trainer(model=GAN2Shape, model_config=config, debug=False, plot_intermediate=True)
 
     # plot_originals(images)
-    trainer.fit(images, latents, plot_depth_map=False)
-    plot_reconstructions(trainer.reconstructions)
-
+    trainer.fit(images, latents)
     return
 
 

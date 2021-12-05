@@ -55,6 +55,7 @@ class GAN2Shape(nn.Module):
                                     strict=False)
 
         # Misc
+        self.n_proj_samples = config.get('n_proj_samples', 1)
         self.max_depth = 1.1
         self.min_depth = 0.9
         self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
@@ -173,7 +174,7 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step2(self, images, latents, collected):
-        batch_size = len(images)
+        num_proj_samples = self.n_proj_samples
         F1_d = 2  # FIXME
         if self.debug:
             print('Doing step 2')
@@ -188,7 +189,7 @@ class GAN2Shape(nn.Module):
 
 
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(batch_size, normal,
+            pseudo_im, mask = self.sample_pseudo_imgs(num_proj_samples, normal,
                                                       light_a, light_b,
                                                       albedo, depth,
                                                       canon_mask)
@@ -251,11 +252,9 @@ class GAN2Shape(nn.Module):
           -  anything to return?
         """
         
-        # Let's assume images is a batch of dimensions (batch_size, 3, 128, 128)
+        # Let's assume the proj samples is a single image of dim (1, 3, 128, 128)
         projected_samples, masks = collected
-        # projected_samples = projected_samples.detach()
-        # samples = torch.cat((images, projected_samples), dim = 0)
-        # batch_size = len(samples)
+        
         b = 1
         _, h, w = projected_samples[0].shape
 
@@ -391,6 +390,51 @@ class GAN2Shape(nn.Module):
         texture = (albedo/2+0.5) * shading * 2 - 1
         return diffuse_shading, texture
 
+    def evaluate_results(self, image):
+        with torch.no_grad():
+            b = 1
+            h, w = self.image_size, self.image_size
+            if self.debug:
+                print('Doing step 1')
+            
+            # Depth
+            # TODO: add flips?
+            depth_raw = self.depth_net(image)
+            depth = self.get_clamped_depth(depth_raw, h, w)
+
+            # Viewpoint
+
+            view = self.viewpoint_net(image)
+            # TODO: add mean and flip?
+            view_trans = self.get_view_transformation(view)
+            self.renderer.set_transform_matrices(view_trans)
+
+            # Albedo
+            albedo = self.albedo_net(image)
+            # TODO: add flips?
+            
+            # Lighting
+            lighting = self.lighting_net(image)
+            lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
+            
+            # Shading                 
+            normal = self.renderer.get_normal_from_depth(depth)
+            diffuse_shading, texture = self.get_shading(normal, lighting_a, 
+                                            lighting_b, lighting_d, albedo)
+
+            recon_depth = self.renderer.warp_canon_depth(depth)
+            recon_normal = self.renderer.get_normal_from_depth(recon_depth)
+            # FIXME: why is above var not used?
+
+            grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
+            margin = (self.max_depth - self.min_depth) / 2
+
+            # invalid border pixels have been clamped at max_depth+margin
+            recon_im_mask = (recon_depth < self.max_depth+margin).float()
+            recon_im_mask = recon_im_mask.unsqueeze(1).detach()
+            recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+
+        return recon_im, recon_depth
 
 class ViewLightSampler():
     def __init__(self, view_mvn_path, light_mvn_path, view_scale):
