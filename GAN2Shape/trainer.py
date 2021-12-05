@@ -4,13 +4,15 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from plotting import plot_reconstructions
+import wandb
 
 class Trainer():
     def __init__(self,
                  model,
                  model_config,
                  debug=False,
-                 plot_intermediate=False):
+                 plot_intermediate=False,
+                 log_wandb=False):
         self.model = model(model_config, debug)
         # self.n_epochs = model_config.get('n_epochs', 1)
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1)
@@ -18,6 +20,7 @@ class Trainer():
         self.refinement_iterations = model_config.get('refinement_iterations', 4)
         self.n_proj_samples = model_config.get('n_proj_samples', 1)
         self.plot_intermediate = plot_intermediate
+        self.log_wandb = log_wandb
 
     def fit(self, images, latents, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
@@ -56,6 +59,9 @@ class Trainer():
                         loss.backward()
                         step1_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage":stage, "total_it": total_it,"loss_step1": loss})
                     
                     step2_iterator = tqdm(range(stages[stage]['step2']))
                     for _ in step2_iterator:
@@ -64,6 +70,9 @@ class Trainer():
                         loss.backward()
                         step2_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage":stage, "total_it": total_it,"loss_step2": loss})
 
                     projected_samples, masks = collected_step2
                     step3_iterator = tqdm(range(stages[stage]['step3']))
@@ -75,6 +84,9 @@ class Trainer():
                             loss.backward()
                             step3_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                             total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage":stage, "total_it": total_it,"loss_step3": loss})
             
             if self.plot_intermediate:
                 recon_im, recon_depth = self.model.evaluate_results(image_batch)

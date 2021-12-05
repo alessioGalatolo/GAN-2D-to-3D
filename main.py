@@ -7,6 +7,7 @@ from GAN2Shape.trainer import Trainer
 from GAN2Shape.model import GAN2Shape
 from GAN2Shape.dataset import ImageDataset, LatentDataset
 from plotting import *
+import wandb
 
 def main():
     parser = argparse.ArgumentParser(description='Run a GAN 2D to 3D shape')
@@ -14,6 +15,10 @@ def main():
                         dest='CONFIG',
                         default='config.yml',
                         help='path of the config yaml file')
+    parser.add_argument('--wandb', 
+                        dest='WANDB', 
+                        action='store_true', 
+                        default=False)  
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -23,6 +28,9 @@ def main():
     # read configuration
     with open(args.CONFIG, 'r') as config_file:
         config = yaml.safe_load(config_file)
+
+    if args.WANDB:
+        wandb.init(project=" gan-2d-to-3d", entity="alfredn", config=config)
 
     # load/transform data
     transform = transforms.Compose(
@@ -37,7 +45,8 @@ def main():
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration
-    trainer = Trainer(model=GAN2Shape, model_config=config, debug=False, plot_intermediate=True)
+    trainer = Trainer(  model=GAN2Shape, model_config=config, 
+                        debug=False, plot_intermediate=True, log_wandb=args.WANDB)
 
     # plot_originals(images)
     trainer.fit(images, latents)
