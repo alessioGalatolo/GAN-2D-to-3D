@@ -30,7 +30,7 @@ def main():
         config = yaml.safe_load(config_file)
 
     if args.WANDB:
-        wandb.init(project=" gan-2d-to-3d", entity="alfredn", config=config)
+        wandb.init(project=" gan-2d-to-3d", entity="dd2412-group42", config=config)
 
     # load/transform data
     transform = transforms.Compose(
