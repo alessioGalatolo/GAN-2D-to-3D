@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_originals(images, im_idx=0):
-    image = images[im_idx][0].view(128,128,3)
+    image = images[im_idx][0].transpose(0,2).transpose(0,1)
     image = image.numpy()
 
     plt.imshow(image)
@@ -11,7 +11,7 @@ def plot_originals(images, im_idx=0):
     return
 
 def plot_reconstructions(recon_dict, im_idx=0):
-    image = recon_dict['images'][im_idx][0].view(128,128,3)
+    image = recon_dict['images'][im_idx][0].transpose(0,2).transpose(0,1)
     image = image.numpy()
 
     plt.imshow(image)
