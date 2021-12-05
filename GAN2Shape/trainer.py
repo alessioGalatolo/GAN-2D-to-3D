@@ -36,8 +36,11 @@ class Trainer():
         #             {'step1': 200, 'step2': 500, 'step3': 400},
         #             {'step1': 200, 'step2': 500, 'step3': 400},
         #             {'step1': 200, 'step2': 500, 'step3': 400}]
-        # stages = [  {'step1': 10, 'step2': 10, 'step3': 8}]
-        stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
+        stages = [  {'step1': 70, 'step2': 70, 'step3': 60},
+                    {'step1': 20, 'step2': 50, 'step3': 40},
+                    {'step1': 20, 'step2': 50, 'step3': 40},
+                    {'step1': 20, 'step2': 50, 'step3': 40}]
+        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
 
         ## Sequential training of the D,A,L,V nets
         for stage in tqdm(range(len(stages))):
