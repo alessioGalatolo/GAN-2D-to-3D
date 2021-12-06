@@ -17,7 +17,7 @@ class Trainer():
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.refinement_iterations = model_config.get('refinement_iterations', 4)
-        self.n_proj_samples = model_config.get('n_proj_samples', 1)
+        self.n_proj_samples = model_config.get('n_proj_samples', 1)  # FIXME: Not used
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
 

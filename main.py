@@ -46,8 +46,9 @@ def main():
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration
-    trainer = Trainer(  model=GAN2Shape, model_config=config, 
-                        debug=False, plot_intermediate=True, log_wandb=args.WANDB)
+    trainer = Trainer(model=GAN2Shape, model_config=config,
+                      debug=False, plot_intermediate=True,
+                      log_wandb=args.WANDB)
 
     # plot_originals(images)
     trainer.fit(images, latents)
