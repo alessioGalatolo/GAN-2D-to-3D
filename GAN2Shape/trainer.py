@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-import torch.nn.functional as F
+from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 from plotting import plot_reconstructions
@@ -31,78 +31,76 @@ class Trainer():
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
-        collected = None
         # stages = [  {'step1': 700, 'step2': 700, 'step3': 600},
         #             {'step1': 200, 'step2': 500, 'step3': 400},
         #             {'step1': 200, 'step2': 500, 'step3': 400},
         #             {'step1': 200, 'step2': 500, 'step3': 400}]
-        stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40}]
+        stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
 
         # Sequential training of the D,A,L,V nets
         for stage in tqdm(range(len(stages))):
             running_loss = 0.0
 
-            iterator = tqdm(range(len(images)))
-            for i_batch in iterator:
-                iterator.set_description("Stage: " + str(stage) + "/"
-                                         + str(len(stages)) + ". Image: "
-                                         + str(i_batch+1) + "/"
-                                         + str(len(images)) + ".")
-                for _ in range(self.refinement_iterations):
+            old_collected = [None for _ in range(len(images))]
+            for step in [1, 2]:  # step 1, 2
+                step_iterator = tqdm(range(stages[stage][f'step{step}']))
+                current_collected = []
+                for _ in step_iterator:
+                    current_collected.clear()
+                    iterator = tqdm(range(len(images)))
+                    for i_batch in iterator:
+                        iterator.set_description("Stage: " + str(stage) + "/"
+                                                 + str(len(stages)) + ". Image: "
+                                                 + str(i_batch+1) + "/"
+                                                 + str(len(images)) + ".")
+                        image_batch = images[i_batch].cuda()
+                        latent_batch = latents[i_batch].cuda()
+                        optim.zero_grad()
+                        collected = old_collected[i_batch]
+                        loss, collected = getattr(self.model, f'forward_step{step}') \
+                            (image_batch, latent_batch, collected)
+                        current_collected.append(collected)
+                        loss.backward()
+                        step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
+                        total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage": stage,
+                                       "total_it": total_it,
+                                       f"loss_step{step}": loss})
+                old_collected = current_collected
+
+            # step 3
+            step_iterator = tqdm(range(stages[stage][f'step{step}']))
+            current_collected = []
+            for _ in step_iterator:
+                current_collected.clear()
+                iterator = tqdm(range(len(images)))
+                for i_batch in iterator:
+                    iterator.set_description("Stage: " + str(stage) + "/"
+                                             + str(len(stages)) + ". Image: "
+                                             + str(i_batch+1) + "/"
+                                             + str(len(images)) + ".")
                     image_batch = images[i_batch].cuda()
                     latent_batch = latents[i_batch].cuda()
-
-                    step1_iterator = tqdm(range(stages[stage]['step1']))
-                    for _ in step1_iterator:
+                    projected_samples, masks = old_collected[i_batch]
+                    for i_proj in range(len(projected_samples)):
                         optim.zero_grad()
-                        loss, collected_step1 = self.model.forward_step1(image_batch,
-                                                                         latent_batch,
-                                                                         collected)
+                        collected = projected_samples[i_proj].unsqueeze(0), masks[i_proj].unsqueeze(0)
+
+                        loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
                         loss.backward()
-                        step1_iterator.set_description("Loss = " + str(loss.detach().cpu()))
+                        step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
 
-                        if self.log_wandb:
-                            wandb.log({"stage": stage,
-                                       "total_it": total_it,
-                                       "loss_step1": loss})
-
-                    step2_iterator = tqdm(range(stages[stage]['step2']))
-                    for _ in step2_iterator:
-                        optim.zero_grad()
-                        loss, collected_step2 = self.model.forward_step2(image_batch,
-                                                                         latent_batch,
-                                                                         collected_step1)
-                        loss.backward()
-                        step2_iterator.set_description("Loss = " + str(loss.detach().cpu()))
-                        total_it += 1
-
-                        if self.log_wandb:
-                            wandb.log({"stage": stage,
-                                       "total_it": total_it,
-                                       "loss_step2": loss})
-
-                    projected_samples, masks = collected_step2
-                    step3_iterator = tqdm(range(stages[stage]['step3']))
-                    for _ in step3_iterator:
-                        for i_proj in range(len(projected_samples)):
-                            optim.zero_grad()
-                            collected = projected_samples[i_proj].unsqueeze(0), masks[i_proj].unsqueeze(0)
-                            loss, _ = self.model.forward_step3(image_batch,
-                                                               latent_batch,
-                                                               collected)
-                            loss.backward()
-                            step3_iterator.set_description("Loss = " + str(loss.detach().cpu()))
-                            total_it += 1
-
-                        if self.log_wandb:
-                            wandb.log({"stage": stage,
-                                       "total_it": total_it,
-                                       "loss_step3": loss})
+                    if self.log_wandb:
+                        wandb.log({"stage": stage,
+                                   "total_it": total_it,
+                                   "loss_step3": loss})
 
             if self.plot_intermediate:
                 recon_im, recon_depth = self.model.evaluate_results(image_batch)

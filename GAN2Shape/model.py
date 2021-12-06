@@ -296,7 +296,7 @@ class GAN2Shape(nn.Module):
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-        # FIXME: what should step 3 return?
+        # FIXME: what should step 3 return? Nothing :)
         collected = (recon_im.detach().cpu(), recon_depth.detach().cpu())
         return loss_total, collected
 
