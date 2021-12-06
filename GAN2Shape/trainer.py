@@ -1,8 +1,6 @@
 import torch
 from tqdm import tqdm
-from torch.utils.data import DataLoader
-import numpy as np
-import matplotlib.pyplot as plt
+from random import shuffle
 from plotting import plot_reconstructions
 import wandb
 
@@ -31,16 +29,18 @@ class Trainer():
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
-        # stages = [  {'step1': 700, 'step2': 700, 'step3': 600},
-        #             {'step1': 200, 'step2': 500, 'step3': 400},
-        #             {'step1': 200, 'step2': 500, 'step3': 400},
-        #             {'step1': 200, 'step2': 500, 'step3': 400}]
+        # stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400}]
         stages = [{'step1': 70, 'step2': 70, 'step3': 60},
                   {'step1': 20, 'step2': 50, 'step3': 40},
                   {'step1': 20, 'step2': 50, 'step3': 40},
                   {'step1': 20, 'step2': 50, 'step3': 40}]
         # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
 
+        # array to keep the same shuffling among images, latents, etc.
+        shuffle_ids = [i for i in range(len(images))]
         # Sequential training of the D,A,L,V nets
         for stage in tqdm(range(len(stages))):
             running_loss = 0.0
@@ -51,7 +51,8 @@ class Trainer():
                 current_collected = []
                 for _ in step_iterator:
                     current_collected.clear()
-                    iterator = tqdm(range(len(images)))
+                    shuffle(shuffle_ids)
+                    iterator = tqdm(shuffle_ids)
                     for i_batch in iterator:
                         iterator.set_description("Stage: " + str(stage) + "/"
                                                  + str(len(stages)) + ". Image: "
@@ -79,7 +80,8 @@ class Trainer():
             current_collected = []
             for _ in step_iterator:
                 current_collected.clear()
-                iterator = tqdm(range(len(images)))
+                shuffle(shuffle_ids)
+                iterator = tqdm(shuffle_ids)
                 for i_batch in iterator:
                     iterator.set_description("Stage: " + str(stage) + "/"
                                              + str(len(stages)) + ". Image: "
