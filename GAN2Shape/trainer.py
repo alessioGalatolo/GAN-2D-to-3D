@@ -89,8 +89,10 @@ class Trainer():
                                              + str(len(images)) + ".")
                     image_batch = images[i_batch].cuda()
                     latent_batch = latents[i_batch].cuda()
+                    shuffle_projected = [i for i in range(len(projected_samples))]
+                    shuffle(shuffle_projected)
                     projected_samples, masks = old_collected[i_batch]
-                    for i_proj in range(len(projected_samples)):
+                    for i_proj in shuffle_projected:
                         optim.zero_grad()
                         collected = projected_samples[i_proj].unsqueeze(0), masks[i_proj].unsqueeze(0)
 
