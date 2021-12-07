@@ -14,7 +14,7 @@ sudo sh cuda_10.2.89_440.33.01_linux.run
 ```
 # Install Conda
 curl -LO https://repo.anaconda.com/miniconda/Miniconda3-py39_4.10.3-Linux-x86_64.sh
-sh Miniconda3-py39_4.10.3-Linux-x86_64.sh 
+bash Miniconda3-py39_4.10.3-Linux-x86_64.sh
 ```
 *Close and reopen terminal*
 ```
