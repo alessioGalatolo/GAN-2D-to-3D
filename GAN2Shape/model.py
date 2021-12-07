@@ -220,7 +220,11 @@ class GAN2Shape(nn.Module):
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
 
-        collected = projected_image.detach(), mask
+        # if self.debug:
+        #     proj_im = projected_image.detach().cpu()
+        #     plt.imshow(proj_im[0].transpose(0,2).transpose(0,1))
+        #     plt.show()
+        collected = projected_image.detach().cpu(), mask.detach().cpu()
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
@@ -281,6 +285,11 @@ class GAN2Shape(nn.Module):
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+
+        # if self.debug:
+        #     im = recon_im.detach().cpu()
+        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
+        #     plt.show()
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], projected_sample, mask=recon_im_mask[:b])

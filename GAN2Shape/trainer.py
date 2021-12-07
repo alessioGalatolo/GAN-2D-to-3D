@@ -3,7 +3,7 @@ from tqdm import tqdm
 from random import shuffle
 from plotting import plot_reconstructions
 import wandb
-
+import matplotlib.pyplot as plt
 
 class Trainer():
     def __init__(self,
@@ -17,9 +17,9 @@ class Trainer():
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.refinement_iterations = model_config.get('refinement_iterations', 4)
-        self.n_proj_samples = model_config.get('n_proj_samples', 1)  # FIXME: Not used
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
+        self.debug=debug
 
     def fit(self, images, latents, plot_depth_map=False):
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
@@ -33,11 +33,11 @@ class Trainer():
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400}]
-        stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40}]
+        stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
 
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -45,12 +45,11 @@ class Trainer():
         for stage in tqdm(range(len(stages))):
             running_loss = 0.0
 
-            old_collected = [None for _ in range(len(images))]
+            old_collected = [None]*len(images)
             for step in [1, 2]:  # step 1, 2
                 step_iterator = tqdm(range(stages[stage][f'step{step}']))
-                current_collected = []
+                current_collected = [None]*len(images)
                 for _ in step_iterator:
-                    current_collected.clear()
                     shuffle(shuffle_ids)
                     iterator = tqdm(shuffle_ids)
                     for i_batch in iterator:
@@ -64,10 +63,15 @@ class Trainer():
                         collected = old_collected[i_batch]
                         loss, collected = getattr(self.model, f'forward_step{step}') \
                             (image_batch, latent_batch, collected)
-                        current_collected.append(collected)
+                        # We want to make sure we keep track of the index corresponding to the original image
+                        # hence this change
+                        current_collected[i_batch]=collected
                         loss.backward()
                         step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
+
+                        if step==2:
+                            breakpoint=True
 
                         if self.log_wandb:
                             wandb.log({"stage": stage,
@@ -76,10 +80,10 @@ class Trainer():
                 old_collected = current_collected
 
             # step 3
-            step_iterator = tqdm(range(stages[stage][f'step{step}']))
+            step_iterator = tqdm(range(stages[stage]['step3']))
             current_collected = []
             for _ in step_iterator:
-                current_collected.clear()
+                current_collected = [None]*len(images)
                 shuffle(shuffle_ids)
                 iterator = tqdm(shuffle_ids)
                 for i_batch in iterator:
@@ -89,12 +93,23 @@ class Trainer():
                                              + str(len(images)) + ".")
                     image_batch = images[i_batch].cuda()
                     latent_batch = latents[i_batch].cuda()
-                    projected_samples, masks = old_collected[i_batch]
+                    projected_samples, masks = old_collected[i_batch] 
                     shuffle_projected = [i for i in range(len(projected_samples))]
                     shuffle(shuffle_projected)
                     for i_proj in shuffle_projected:
                         optim.zero_grad()
-                        collected = projected_samples[i_proj].unsqueeze(0), masks[i_proj].unsqueeze(0)
+                        collected = projected_samples[i_proj].unsqueeze(0).cuda(), masks[i_proj].unsqueeze(0).cuda()
+                        
+                        #we can delete this later (of course)
+                        if self.debug:
+                            im = image_batch[0].cpu().transpose(0,2).transpose(0,1)
+                            proj_im = projected_samples[i_proj].cpu().transpose(0,2).transpose(0,1)
+                            plt.imshow(im)
+                            plt.show()
+                            breakpoint = True
+                            plt.imshow(proj_im)
+                            plt.show()
+                            breakpoint = True
 
                         loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
                         loss.backward()
