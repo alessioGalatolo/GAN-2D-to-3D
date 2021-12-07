@@ -253,29 +253,23 @@ class GAN2Shape(nn.Module):
         """
 
         # Let's assume the proj samples is a single image of dim (1, 3, 128, 128)
-        projected_samples, masks = collected
+        projected_sample, mask = collected
+        _, collected = self.forward_step1(images, latents, None)
+        normal, _, _, albedo, depth, _ = collected
 
         b = 1
-        _, h, w = projected_samples[0].shape
-
-        # Depth
-        depth_raw = self.depth_net(projected_samples)   # D(I)
-        depth = self.get_clamped_depth(depth_raw, h, w)
+        _, h, w = projected_sample[0].shape
 
         # View
-        view = self.viewpoint_net(projected_samples)  # V(i)
+        view = self.viewpoint_net(projected_sample)  # V(i)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
-        light = self.lighting_net(projected_samples)   # L(i)
+        light = self.lighting_net(projected_sample)   # L(i)
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
-        # Albedo
-        albedo = self.albedo_net(projected_samples)  # A(I)
-
         # Shading
-        normal = self.renderer.get_normal_from_depth(depth)
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
 
@@ -285,20 +279,18 @@ class GAN2Shape(nn.Module):
 
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
-        recon_im_mask = recon_im_mask.unsqueeze(1).detach()
+        recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
+        loss_l1_im = self.photo_loss(recon_im[:b], projected_sample, mask=recon_im_mask[:b])
         loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
-                                        projected_samples * recon_im_mask[:b])
+                                        projected_sample * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
-        # FIXME: what should step 3 return? Nothing :)
-        collected = (recon_im.detach().cpu(), recon_depth.detach().cpu())
-        return loss_total, collected
+        return loss_total, None
 
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
