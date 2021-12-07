@@ -111,7 +111,7 @@ class GAN2Shape(nn.Module):
             else:
                 return torch.ones([1, height, width])
 
-    def forward_step1(self, images, latents, collected):
+    def forward_step1(self, images, latents, collected, step1=True):
         b = 1
         h, w = self.image_size, self.image_size
         if self.debug:
@@ -119,23 +119,44 @@ class GAN2Shape(nn.Module):
 
         # Depth
         # TODO: add flips?
-        with torch.no_grad():
+        if step1:
+            with torch.no_grad():
+                depth_raw = self.depth_net(images)
+        else:
             depth_raw = self.depth_net(images)
         depth = self.get_clamped_depth(depth_raw, h, w)
 
+        # if self.debug:
+        #     im_depth = depth[0].detach().cpu()
+        #     plt.imshow(im_depth)
+        #     plt.show()
+
         # Viewpoint
-        with torch.no_grad():
+        if step1:
+            with torch.no_grad():
+                view = self.viewpoint_net(images)
+        else:
             view = self.viewpoint_net(images)
         # TODO: add mean and flip?
+
+        
+
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
-
+        
         # Albedo
         albedo = self.albedo_net(images)
         # TODO: add flips?
 
+        # if self.debug:
+        #     im = albedo.detach().cpu()
+        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
+        #     plt.show()
         # Lighting
-        with torch.no_grad():
+        if step1:
+            with torch.no_grad():
+                lighting = self.lighting_net(images)
+        else:
             lighting = self.lighting_net(images)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
@@ -143,18 +164,46 @@ class GAN2Shape(nn.Module):
         normal = self.renderer.get_normal_from_depth(depth)
         diffuse_shading, texture = self.get_shading(normal, lighting_a,
                                                     lighting_b, lighting_d, albedo)
+        
+        # if self.debug:
+        #     im = diffuse_shading.detach().cpu()
+        #     plt.imshow(im[0,0])
+        #     plt.show()
+
+        if self.debug:
+            im = texture.detach().cpu()
+            plt.imshow(im[0].transpose(0,2).transpose(0,1))
+            plt.show()
 
         recon_depth = self.renderer.warp_canon_depth(depth)
+
+        # if self.debug:
+        #     im = recon_depth.detach().cpu()
+        #     plt.imshow(im[0])
+        #     plt.show()
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
         # FIXME: why is above var not used?
 
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
+        # if self.debug:
+        #     im = grid_2d_from_canon.detach().cpu()
+        #     plt.imshow(im[0,:,:,0])
+        #     plt.show()
+        #     breakpoint=True
+        #     im = grid_2d_from_canon.detach().cpu()
+        #     plt.imshow(im[0,:,:,1])
+        #     plt.show()
         margin = (self.max_depth - self.min_depth) / 2
 
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach()
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+
+        # if self.debug:
+        #     im = recon_im.detach().cpu()
+        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
+        #     plt.show()
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
@@ -258,7 +307,7 @@ class GAN2Shape(nn.Module):
 
         # Let's assume the proj samples is a single image of dim (1, 3, 128, 128)
         projected_sample, mask = collected
-        _, collected = self.forward_step1(images, latents, None)
+        _, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
         b = 1
@@ -393,6 +442,11 @@ class GAN2Shape(nn.Module):
         diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
         shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
         texture = (albedo/2+0.5) * shading * 2 - 1
+        # if self.debug:
+        #     im = texture.detach().cpu()
+        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
+        #     plt.show()
+
         return diffuse_shading, texture
 
     def evaluate_results(self, image):
@@ -442,6 +496,20 @@ class GAN2Shape(nn.Module):
 
         return recon_im, recon_depth
 
+    def reset_params(self, net):
+        for layers in net.children():
+            for layer in layers:
+                if hasattr(layer, 'reset_parameters'):
+                    # print("Resetting layer")
+                    layer.reset_parameters()
+    
+    def reinitialize_model(self):
+        print(">>>RESETTING ALL WEIGHTS<<<")
+        self.reset_params(self.lighting_net)
+        self.reset_params(self.viewpoint_net)
+        self.reset_params(self.depth_net)
+        self.reset_params(self.albedo_net)
+        self.reset_params(self.offset_encoder_net)
 
 class ViewLightSampler():
     def __init__(self, view_mvn_path, light_mvn_path, view_scale):

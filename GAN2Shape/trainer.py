@@ -22,6 +22,7 @@ class Trainer():
         self.debug=debug
 
     def fit(self, images, latents, plot_depth_map=False):
+        self.model.reinitialize_model()
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
 
         # # Pretrain depth net on the prior shape
@@ -37,7 +38,9 @@ class Trainer():
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        stages = [  {'step1': 1, 'step2': 1, 'step3': 1},
+                    {'step1': 1, 'step2': 1, 'step3': 1}]
 
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -67,11 +70,20 @@ class Trainer():
                         # hence this change
                         current_collected[i_batch]=collected
                         loss.backward()
+                        optim.step()
                         step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
 
-                        if step==2:
-                            breakpoint=True
+                        # #the albedo net parameters are not changing!!?? 
+                        # edit: we are actual idiots <3
+                        # if self.debug:
+                        #     if step==1:
+                        #         paramsum=0
+                        #         for param in self.model.albedo_net.named_parameters():
+                        #             param = param[1]
+                        #             s = torch.sum(param)
+                        #             paramsum+=torch.sum(param)
+                        #     print(f"Albedo param sum = {paramsum:.100}\n")
 
                         if self.log_wandb:
                             wandb.log({"stage": stage,
@@ -100,19 +112,20 @@ class Trainer():
                         optim.zero_grad()
                         collected = projected_samples[i_proj].unsqueeze(0).cuda(), masks[i_proj].unsqueeze(0).cuda()
                         
-                        #we can delete this later (of course)
-                        if self.debug:
-                            im = image_batch[0].cpu().transpose(0,2).transpose(0,1)
-                            proj_im = projected_samples[i_proj].cpu().transpose(0,2).transpose(0,1)
-                            plt.imshow(im)
-                            plt.show()
-                            breakpoint = True
-                            plt.imshow(proj_im)
-                            plt.show()
-                            breakpoint = True
+                        # #we can delete this later (of course)
+                        # if self.debug:
+                        #     im = image_batch[0].cpu().transpose(0,2).transpose(0,1)
+                        #     proj_im = projected_samples[i_proj].cpu().transpose(0,2).transpose(0,1)
+                        #     plt.imshow(im)
+                        #     plt.show()
+                        #     breakpoint = True
+                        #     plt.imshow(proj_im)
+                        #     plt.show()
+                        #     breakpoint = True
 
                         loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
                         loss.backward()
+                        optim.step()
                         step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
 
