@@ -11,7 +11,7 @@ root_path: data/car
 learning_rate: 0.0001
 view_scale: 1
 refinement_iterations: 1
-n_proj_samples: 5
+n_proj_samples: 10
 
 ## renderer
 rot_center_depth: 1.0
