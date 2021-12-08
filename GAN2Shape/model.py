@@ -99,7 +99,7 @@ class GAN2Shape(nn.Module):
         depth = self.rescale_depth(depth)
         return F.mse_loss(depth, prior.detach())
 
-    def forward_step1(self, images, latents, collected, step1=True):
+    def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
         h, w = self.image_size, self.image_size
         if self.debug:
@@ -161,6 +161,10 @@ class GAN2Shape(nn.Module):
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach()
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+
+        ## Only used at test time
+        if eval:
+            return recon_im, recon_depth
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
@@ -265,24 +269,25 @@ class GAN2Shape(nn.Module):
         # View
         view = self.viewpoint_net(projected_sample)  # V(i)
         # Add mean
-        view += self.view_mean.unsqueeze(0)
+        view = view + self.view_mean.unsqueeze(0)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
         light = self.lighting_net(projected_sample)   # L(i)
         # Add mean
-        light += self.light_mean.unsqueeze(0)
+        light = light + self.light_mean.unsqueeze(0)
+
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
         # Shading
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
-
+        
         recon_depth = self.renderer.warp_canon_depth(depth)
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
         margin = (self.max_depth - self.min_depth) / 2
-
+        
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
@@ -399,49 +404,7 @@ class GAN2Shape(nn.Module):
 
     def evaluate_results(self, image):
         with torch.no_grad():
-            h, w = self.image_size, self.image_size
-            if self.debug:
-                print('Doing step 1')
-
-            # Depth
-            # TODO: add flips?
-            depth_raw = self.depth_net(image)
-            depth = self.get_clamped_depth(depth_raw, h, w)
-
-            # Viewpoint
-
-            view = self.viewpoint_net(image)
-            # TODO: add mean and flip?
-            view_trans = self.get_view_transformation(view)
-            self.renderer.set_transform_matrices(view_trans)
-
-            # Albedo
-            albedo = self.albedo_net(image)
-            # TODO: add flips?
-
-            # Lighting
-            lighting = self.lighting_net(image)
-            lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
-
-            # Shading
-            normal = self.renderer.get_normal_from_depth(depth)
-            diffuse_shading, texture = self.get_shading(normal, lighting_a,
-                                                        lighting_b, lighting_d, albedo)
-
-            recon_depth = self.renderer.warp_canon_depth(depth)
-            recon_normal = self.renderer.get_normal_from_depth(recon_depth)
-            # FIXME: why is above var not used?
-
-            grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
-            margin = (self.max_depth - self.min_depth) / 2
-
-            # invalid border pixels have been clamped at max_depth+margin
-            recon_im_mask = (recon_depth < self.max_depth+margin).float()
-            recon_im_mask = recon_im_mask.unsqueeze(1).detach()
-            recon_im = F.grid_sample(texture,
-                                     grid_2d_from_canon,
-                                     mode='bilinear').clamp(min=-1, max=1)
-
+            recon_im, recon_depth = self.forward_step1(image, None, None, eval=True)
         return recon_im, recon_depth
 
     def reset_params(self, net):

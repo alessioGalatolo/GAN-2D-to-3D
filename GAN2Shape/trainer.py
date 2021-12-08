@@ -24,15 +24,15 @@ class Trainer():
         self.debug = debug
 
     def fit(self, images, latents, plot_depth_map=False):
-        self.model.reinitialize_model()
+        # self.model.reinitialize_model()
         optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
-        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400}]
+        # stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400}]
         # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
@@ -40,8 +40,8 @@ class Trainer():
         # stages = [  {'step1': 7, 'step2': 7, 'step3': 6},
         #             {'step1': 2, 'step2': 5, 'step3': 4}]
         # # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
-        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1},
-        #             {'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
+        stages = [  {'step1': 100, 'step2': 1, 'step3': 1}]
 
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -51,8 +51,11 @@ class Trainer():
         for i_batch in iterator:
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
+
             # Pretrain depth net on the prior shape
-            self.pretrain_on_prior(image_batch, plot_depth_map)
+
+            self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+
             for stage in tqdm(range(len(stages))):
                 iterator.set_description("Stage: " + str(stage) + "/"
                                          + str(len(stages)) + ". Image: "
@@ -78,20 +81,12 @@ class Trainer():
                         step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
 
-                        # if self.debug:
-                        #     if step==1:
-                        #         paramsum=0
-                        #         for param in self.model.albedo_net.named_parameters():
-                        #             param = param[1]
-                        #             s = torch.sum(param)
-                        #             paramsum+=torch.sum(param)
-                        #     print(f"Albedo param sum = {paramsum:.100}\n")
-
                         if self.log_wandb:
                             wandb.log({"stage": stage,
                                        "total_it": total_it,
-                                       f"loss_step{step}": loss})
-                old_collected = current_collected
+                                       f"loss_step{step}": loss,
+                                       "image_num": i_batch})
+                    old_collected = current_collected
 
                 # step 3
                 step_iterator = tqdm(range(stages[stage]['step3']))
@@ -105,17 +100,6 @@ class Trainer():
                         optim.zero_grad()
                         collected = projected_samples[i_proj].unsqueeze(0).cuda(), masks[i_proj].unsqueeze(0).cuda()
 
-                        # #we can delete this later (of course)
-                        # if self.debug:
-                        #     im = image_batch[0].cpu().transpose(0,2).transpose(0,1)
-                        #     proj_im = projected_samples[i_proj].cpu().transpose(0,2).transpose(0,1)
-                        #     plt.imshow(im)
-                        #     plt.show()
-                        #     breakpoint = True
-                        #     plt.imshow(proj_im)
-                        #     plt.show()
-                        #     breakpoint = True
-
                         loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
                         loss.backward()
                         optim.step()
@@ -125,17 +109,21 @@ class Trainer():
                     if self.log_wandb:
                         wandb.log({"stage": stage,
                                    "total_it": total_it,
-                                   "loss_step3": loss})
+                                   "loss_step3": loss,
+                                   "image_num": i_batch})
 
             if self.plot_intermediate:
-                recon_im, recon_depth = self.model.evaluate_results(image_batch)
-                plot_reconstructions(recon_im.cpu(), recon_depth.cpu(), total_it)
+                if i_batch % 3 == 0:
+                    recon_im, recon_depth = self.model.evaluate_results(image_batch)
+                    plot_reconstructions(recon_im.cpu(), recon_depth.cpu(),
+                            total_it=str(total_it), im_idx=str(i_batch), stage=str(stage))
 
             # print(f'Loss: {running_loss}') # FIXME
+            # maybe WandB logging is enough?
 
         print('Finished Training')
 
-    def pretrain_on_prior(self, image, plot_depth_map):
+    def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer(self.model.depth_net)
         train_loss = []
         print("Pretraining depth net on prior shape")
@@ -153,7 +141,10 @@ class Trainer():
                 iterator.set_description("Epoch (prior): " + str(epoch+1) + "/"
                                          + str(self.n_epochs_prior)
                                          + ". Loss = " + str(loss.cpu()))
-                train_loss.append(loss.cpu())
+                
+                if self.log_wandb:
+                    wandb.log({"loss_prior":loss.cpu(),
+                                "image_num": i_batch})
 
         if plot_depth_map:
             self.model.plot_predicted_depth_map(image)
