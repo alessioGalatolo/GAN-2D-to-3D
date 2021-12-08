@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from GAN2Shape.resnet import resnet50, resnet101, resnet152
-from GAN2Shape.debug_grad_updates import *
+from gan2shape.resnet import resnet50, resnet101, resnet152
+from gan2shape.debug_grad_updates import *
 """
 Network dependencies for the networks in arxiv/2011.00844.
 

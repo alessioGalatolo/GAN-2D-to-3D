@@ -5,7 +5,7 @@ from random import shuffle
 from plotting import plot_reconstructions
 import wandb
 import matplotlib.pyplot as plt
-from GAN2Shape import utils
+from gan2shape import utils
 
 
 class Trainer():

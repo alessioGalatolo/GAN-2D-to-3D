@@ -9,11 +9,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 
-from GAN2Shape import utils
-from GAN2Shape import networks
-from GAN2Shape.renderer import Renderer
-from GAN2Shape.stylegan2 import Generator, Discriminator
-from GAN2Shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
+from gan2shape import utils
+from gan2shape import networks
+from gan2shape.renderer import Renderer
+from gan2shape.stylegan2 import Generator, Discriminator
+from gan2shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
 
 
 class GAN2Shape(nn.Module):
