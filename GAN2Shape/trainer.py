@@ -219,10 +219,9 @@ class Trainer():
             image[:, 0].sub_(0.485).div_(0.229)
             image[:, 1].sub_(0.456).div_(0.224)
             image[:, 2].sub_(0.406).div_(0.225)
-            # FIXME: Expected more than 1 value per channel when training,
             out = self.model.mask_net(image)
             out = out.argmax(dim=1, keepdim=True)
-            mask = (out == 7).float()
+            mask = (out == 7).float()  # FIXME: only cars
         return utils.resize(mask, [self.image_size, self.image_size])
 
     @staticmethod

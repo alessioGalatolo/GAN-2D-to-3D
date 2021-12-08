@@ -22,6 +22,7 @@ class ImageDataset(Dataset):
                 image = self.transform(image)
             # image = image[None, :]
             image = image.unsqueeze(0)
+            image = image * 2 - 1
             return image
 
 

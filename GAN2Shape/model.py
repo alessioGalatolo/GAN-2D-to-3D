@@ -48,6 +48,7 @@ class GAN2Shape(nn.Module):
         pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_ade20k.pth')
         self.mask_net.load_state_dict(pspnet_checkpoint['state_dict'],
                                       strict=False)
+        self.mask_net.eval()
 
         # Misc
         self.n_proj_samples = config.get('n_proj_samples', 1)
