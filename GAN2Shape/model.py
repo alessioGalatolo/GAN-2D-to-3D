@@ -107,7 +107,7 @@ class GAN2Shape(nn.Module):
                 depth_raw = self.depth_net(images)
         else:
             depth_raw = self.depth_net(images)
-        depth = self.get_clamped_depth(depth_raw, h, w)
+        depth = self.get_clamped_depth(depth_raw.squeeze(1), h, w)
 
         # if self.debug:
         #     im_depth = depth[0].detach().cpu()
@@ -402,8 +402,8 @@ class GAN2Shape(nn.Module):
         return view_trans
 
     def get_clamped_depth(self, depth_raw, h, w):
-        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-        depth = torch.tanh(depth_centered).squeeze(0)
+        depth_centered = depth_raw - depth_raw.view(1, -1).mean(1).view(1, 1, 1)
+        depth = torch.tanh(depth_centered)
         depth = self.rescale_depth(depth)
         # TODO: add border clamping
         depth_border = torch.zeros(1, h, w-4).cuda()
