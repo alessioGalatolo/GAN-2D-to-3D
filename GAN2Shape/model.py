@@ -145,6 +145,8 @@ class GAN2Shape(nn.Module):
                 lighting = self.lighting_net(images)
         else:
             lighting = self.lighting_net(images)
+        #Add mean
+        lighting += self.light_mean.unsqueeze(0)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
         # Shading
