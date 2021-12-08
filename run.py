@@ -2,7 +2,7 @@ import argparse
 
 import torch
 import torch.distributed as dist
-from mmcv.runner import init_dist
+# from mmcv.runner import init_dist
 
 from gan2shape import setup_runtime, Trainer, GAN2Shape
 

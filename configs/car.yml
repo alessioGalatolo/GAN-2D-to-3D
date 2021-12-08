@@ -3,7 +3,7 @@
 checkpoint_dir: results/car
 save_checkpoint_freq: 500
 keep_num_checkpoint: 2
-use_logger: true
+use_logger: false
 log_freq: 100
 joint_train: false  # true: joint train on multiple images
 independent: false  # true: each process has a different input image

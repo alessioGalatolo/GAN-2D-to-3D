@@ -1,0 +1,5 @@
+import matplotlib.pyplot as plt
+im = self.texture.detach().cpu()
+plt.imshow(im[0].transpose(0,2).transpose(0,1))
+plt.show()
+
