@@ -1,41 +1,99 @@
-# Unsupervised 3D shape retrieval from pre-trained GANs
-Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
+# Do 2D GANs Know 3D Shape? Unsupervised 3D Shape Reconstruction from 2D Image GANs
 
-## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
-```
-sudo apt update
-sudo apt install build-essential
-```
-```
-# CUDA toolkit
-wget https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
-sudo sh cuda_10.2.89_440.33.01_linux.run
-```
-```
-# Install Conda
-curl -LO https://repo.anaconda.com/miniconda/Miniconda3-py39_4.10.3-Linux-x86_64.sh
-bash Miniconda3-py39_4.10.3-Linux-x86_64.sh
-```
-*Close and reopen terminal*
-```
-conda create --name 3D-GAN pytorch==1.2.0 torchvision==0.4.0 cudatoolkit=10.0 -c pytorch
-conda activate 3D-GAN
-```
-```
-# Install neural renderer
-git clone https://github.com/daniilidis-group/neural_renderer.git
-cd neural_renderer
-python setup.py install
-```
-```
-# Install all other dependencies
-conda install numpy pandas distributed ipython lmdb matplotlib Pillow scipy tqdm scikit-image
-conda install wandb PyYAML -c conda-forge
-```
+<p align="center">
+    <img src="GAN2Shape_demo.gif", width="900">
+</p>
 
-## How to run:
-First you need to download the various datasets:
+**Figure:** *Recovered 3D shape and rotation&relighting effects using GAN2Shape.*
+
+> **Do 2D GANs Know 3D Shape? Unsupervised 3D Shape Reconstruction from 2D Image GANs** <br>
+> Xingang Pan, Bo Dai, Ziwei Liu, Chen Change Loy, Ping Luo <br>
+> *ICLR2021* (**Oral**)
+
+[[Paper](https://openreview.net/pdf?id=FGqiDsBUKL0)]
+[[Project Page](https://xingangpan.github.io/projects/GAN2Shape.html)]
+
+In this repository, we present **GAN2Shape**, which reconstructs the 3D shape of an image using off-the-shelf 2D image GANs in an unsupervised manner.
+Our method **does not rely on mannual annotations or external 3D models**, yet it achieves high-quality 3D reconstruction, object rotation, and relighting effects.
+
+## Requirements
+
+* python>=3.6
+* [pytorch](https://pytorch.org/)=1.1 or 1.2
+* [neural_renderer](https://github.com/daniilidis-group/neural_renderer)
+    ```sh
+    pip install neural_renderer_pytorch  # or follow the guidance at https://github.com/elliottwu/unsup3d
+    ```
+* [mmcv](https://github.com/open-mmlab/mmcv)
+    ```sh
+    pip install mmcv
+    ```
+* other dependencies
+    ```sh
+    conda install -c conda-forge scikit-image matplotlib opencv pyyaml tensorboardX
+    ```
+
+## Dataset and pre-trained weights
+
+To download dataset and pre-trained weights, simply run:
 ```sh
-./download.sh
+sh scripts/download.sh
 ```
-Then, simply run the main.py
+
+## Training
+
+Before training, you may optionally compile StyleGAN2 operations, which would be faster:
+```sh
+cd gan2shape/stylegan/stylegan2-pytorch/op
+python setup.py install
+cd ../../../..
+```
+
+**Example1**: training on car images:
+```sh
+sh scripts/run_car.sh
+```
+This would run on 4 GPUs by default. You can view the results at `results/car/images` or Tensorboard.
+
+**Example2**: training on Celeba images:
+```sh
+sh scripts/run_celeba.sh
+```
+This by default uses our provided pre-trained weights. You can also perform joint pre-training via:
+```sh
+sh scripts/run_celeba-pre.sh
+```
+
+**Example3**: evaluating on synface (BFM) dataset:
+```sh
+sh scripts/run_synface.sh
+```
+This by default uses our provided pre-trained weights. You can also perform joint pre-training via:
+```sh
+sh scripts/run_synface-pre.sh
+```
+
+If you want to train on new StyleGAN2 samples, simply run the following script to generate new samples:
+```sh
+sh scripts/run_sample.sh
+```
+
+**Note**:  
+\- For human and cat faces, we perform joint training before instance-specific training, which produces better results.  
+\- For car and church, the quality of StyleGAN2 samples vary a lot, thus our approach may not produce good result on every sample. The downloaded dataset contains examples of good samples.
+
+## Acknowledgement
+
+Part of the code is borrowed from [Unsup3d](https://github.com/elliottwu/unsup3d) and [StyleGAN2](https://github.com/rosinality/stylegan2-pytorch).  
+Colab demo reproduced by [ucalyptus](https://github.com/ucalyptus): [Link](https://colab.research.google.com/drive/124D_f0RIu7Bbwa1SFV6pmvmBrNkB8Ow_?usp=sharing)
+
+## BibTeX
+
+```bibtex
+@inproceedings{pan2020gan2shape,
+  title   = {Do 2D GANs Know 3D Shape? Unsupervised 3D Shape Reconstruction from 2D Image GANs},
+  author  =  {Pan, Xingang and Dai, Bo and Liu, Ziwei and Loy, Chen Change and Luo, Ping},
+  booktitle = {International Conference on Learning Representations},
+  year    = {2021}
+}
+```

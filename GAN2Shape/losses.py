@@ -1,32 +1,30 @@
-from GAN2Shape.stylegan2 import PerceptualLoss as PL
 import torch
 import torch.nn as nn
+from torch.optim import Optimizer
 
 
-class PerceptualLoss(PL):
-    _instance = None
+class SphericalOptimizer(Optimizer):
+    def __init__(self, optimizer, params, **kwargs):
+        self.opt = optimizer(params, **kwargs)
+        self.params = params
+        with torch.no_grad():
+            self.radii = {param: (param.pow(2).sum(tuple(range(2,param.ndim)),keepdim=True)+1e-9).sqrt() for param in params}
 
-    def __init__(self) -> None:
-        super().__init__(model='net-lin', net='vgg',
-                         use_gpu=True, gpu_ids=[torch.device('cuda:0')])
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = self.opt.step(closure)
+        for param in self.params:
+            param.data.div_((param.pow(2).sum(tuple(range(2,param.ndim)),keepdim=True)+1e-9).sqrt())
+            param.mul_(self.radii[param])
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        return loss
 
 
-class DiscriminatorLoss():
-    _instance = None
+class DiscriminatorLoss(object):
 
-    def __init__(self, ftr_num=4, data_parallel=False):
+    def __init__(self, ftr_num=None, data_parallel=False):
         self.data_parallel = data_parallel
         self.ftr_num = ftr_num
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __call__(self, D, fake_img, real_img, mask=None):
         if self.data_parallel:
@@ -46,58 +44,12 @@ class DiscriminatorLoss():
                 b, c, h, w = loss.shape
                 _, _, hm, wm = mask.shape
                 sh, sw = hm//h, wm//w
-                mask0 = nn.functional.avg_pool2d(mask,
-                                                 kernel_size=(sh, sw),
-                                                 stride=(sh, sw)).expand_as(loss)
+                mask0 = nn.functional.avg_pool2d(mask, kernel_size=(sh,sw), stride=(sh,sw)).expand_as(loss)
                 loss = (loss * mask0).sum() / mask0.sum()
             else:
                 loss = loss.mean()
             losses += [loss]
         return sum(losses)
 
-    # FIXME: Is this needed?
     def set_ftr_num(self, ftr_num):
         self.ftr_num = ftr_num
-
-
-class PhotometricLoss():
-    EPS = 1e-7
-
-    def __call__(self, image1, image2, mask=None, conf_sigma=None):
-        loss = (image1 - image2).abs()
-        if conf_sigma is not None:
-            loss = loss * 2**0.5 / (conf_sigma + self.EPS) + (conf_sigma + self.EPS).log()
-        if mask is not None:
-            mask = mask.expand_as(loss)
-            loss = (loss * mask).sum() / mask.sum()
-        else:
-            loss = loss.mean()
-        return loss
-
-
-class SmoothLoss():
-
-    def __call__(self, pred_map):
-        if type(pred_map) not in [tuple, list]:
-            pred_map = [pred_map]
-
-        loss = 0
-        weight = 1
-
-        for scaled_map in pred_map:
-            dx, dy = self.gradient(scaled_map)
-            dx2, dxdy = self.gradient(dx)
-            dydx, dy2 = self.gradient(dy)
-            loss += (dx2.abs().mean()
-                     + dxdy.abs().mean()
-                     + dydx.abs().mean()
-                     + dy2.abs().mean()) * weight
-            weight /= 2.3
-        return loss
-
-    def gradient(self, pred):
-        if pred.dim() == 4:
-            pred = pred.reshape(-1, pred.size(2), pred.size(3))
-        D_dy = pred[:, 1:] - pred[:, :-1]
-        D_dx = pred[:, :, 1:] - pred[:, :, :-1]
-        return D_dx, D_dy

@@ -11,10 +11,11 @@ EPS = 1e-7
 
 
 class Renderer():
-    def __init__(self, cfgs, image_size, min_depth, max_depth):
+    def __init__(self, cfgs, image_size):
+        self.device = cfgs.get('device', 'cpu')
         self.image_size = image_size
-        self.min_depth = min_depth
-        self.max_depth = max_depth
+        self.min_depth = cfgs.get('min_depth', 0.9)
+        self.max_depth = cfgs.get('max_depth', 1.1)
         self.rot_center_depth = cfgs.get('rot_center_depth', (self.min_depth+self.max_depth)/2)
         self.fov = cfgs.get('fov', 10)
         self.tex_cube_size = cfgs.get('tex_cube_size', 2)
@@ -57,7 +58,7 @@ class Renderer():
         if downscale > 1:
             self.K = torch.cat((self.K_origin[:, 0:2]/downscale, self.K_origin[:, 2:]), dim=1)
             self.inv_K = torch.inverse(self.K[0]).unsqueeze(0)
-
+        
     def set_transform_matrices(self, view):
         self.rot_mat, self.trans_xyz = get_transform_matrices(view)
 

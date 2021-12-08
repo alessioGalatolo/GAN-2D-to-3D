@@ -21,11 +21,11 @@ def rand_posneg_range(size, min, max):
 
 def get_grid(b, H, W, normalize=True):
     if normalize:
-        h_range = torch.linspace(-1, 1, H)
-        w_range = torch.linspace(-1, 1, W)
+        h_range = torch.linspace(-1,1,H)
+        w_range = torch.linspace(-1,1,W)
     else:
-        h_range = torch.arange(0, H)
-        w_range = torch.arange(0, W)
+        h_range = torch.arange(0,H)
+        w_range = torch.arange(0,W)
     grid = torch.stack(torch.meshgrid([h_range, w_range]), -1).repeat(b,1,1,1).flip(3).float() # flip h,w to x,y
     return grid
 
@@ -52,23 +52,21 @@ def get_rotation_matrix(tx, ty, tz):
 def get_transform_matrices(view):
     b = view.size(0)
     if view.size(1) == 6:
-        rx = view[:, 0]
-        ry = view[:, 1]
-        rz = view[:, 2]
-        trans_xyz = view[:, 3:].reshape(b, 1, 3)
+        rx = view[:,0]
+        ry = view[:,1]
+        rz = view[:,2]
+        trans_xyz = view[:,3:].reshape(b,1,3)
     elif view.size(1) == 5:
-        rx = view[:, 0]
-        ry = view[:, 1]
-        rz = view[:, 2]
-        delta_xy = view[:, 3:].reshape(b, 1, 2)
-        trans_xyz = torch.cat([delta_xy, torch.zeros(b, 1, 1).to(view.device)], 2)
+        rx = view[:,0]
+        ry = view[:,1]
+        rz = view[:,2]
+        delta_xy = view[:,3:].reshape(b,1,2)
+        trans_xyz = torch.cat([delta_xy, torch.zeros(b,1,1).to(view.device)], 2)
     elif view.size(1) == 3:
-        rx = view[:, 0]
-        ry = view[:, 1]
-        rz = view[:, 2]
-        trans_xyz = torch.zeros(b, 1, 3).to(view.device)
-    else:
-        raise Exception("Unsupported view size. size(1) must be either 3, 5, 6.")
+        rx = view[:,0]
+        ry = view[:,1]
+        rz = view[:,2]
+        trans_xyz = torch.zeros(b,1,3).to(view.device)
     rot_mat = get_rotation_matrix(rx, ry, rz)
     return rot_mat, trans_xyz
 
@@ -84,15 +82,15 @@ def vcolor_to_texture_cube(vcolors):
     # input bxcxnx3
     b, c, n, f = vcolors.shape
     coeffs = torch.FloatTensor(
-        [[0.5, 0.5, 0.5],
-         [0, 0, 1],
-         [0, 1, 0],
-         [-0.5, 0.5, 0.5],
-         [1, 0, 0],
-         [0.5, -0.5,  0.5],
-         [0.5, 0.5, -0.5],
-         [0, 0, 0]]).to(vcolors.device)
-    return coeffs.matmul(vcolors.permute(0, 2, 3, 1)).reshape(b, n, 2, 2, 2, c)
+        [[ 0.5,  0.5,  0.5],
+         [ 0. ,  0. ,  1. ],
+         [ 0. ,  1. ,  0. ],
+         [-0.5,  0.5,  0.5],
+         [ 1. ,  0. ,  0. ],
+         [ 0.5, -0.5,  0.5],
+         [ 0.5,  0.5, -0.5],
+         [ 0. ,  0. ,  0. ]]).to(vcolors.device)
+    return coeffs.matmul(vcolors.permute(0,2,3,1)).reshape(b,n,2,2,2,c)
 
 
 def get_textures_from_im(im, tx_size=1):

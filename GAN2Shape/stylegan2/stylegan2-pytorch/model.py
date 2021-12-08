@@ -514,25 +514,6 @@ class Generator(nn.Module):
                 out = layer(out)
         return out
 
-    def invert_sub(self, latent_projection, truncation, mean_latent):
-        offset, latent = latent_projection
-        gan_im, _ = self([latent], input_is_w=True, truncation_latent=mean_latent,
-                         truncation=truncation, randomize_noise=False)
-        return gan_im.clamp(min=-1, max=1), offset
-
-    def invert(self, image, latent_projection, truncation, mean_latent, batchify=0):
-        if batchify > 0:
-            gan_ims, offsets = [], []
-            for i in range(0, image.size(0), batchify):
-                gan_im, offset = self.invert_sub(image[i: i+batchify], truncation, mean_latent)
-                gan_ims.append(gan_im)
-                offsets.append(offset)
-            gan_ims = torch.cat(gan_ims, dim=0)
-            offsets = torch.cat(offsets, dim=0)
-        else:
-            gan_ims, offsets = self.invert_sub(latent_projection, truncation, mean_latent)
-        return gan_ims, offsets
-
     def style_invert(self, input, skip=0, depth=100):
         out = input
         for i, layer in enumerate(reversed(self.style)):
