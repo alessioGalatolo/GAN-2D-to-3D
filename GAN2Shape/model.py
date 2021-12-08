@@ -114,11 +114,6 @@ class GAN2Shape(nn.Module):
             depth_raw = self.depth_net(images)
         depth = self.get_clamped_depth(depth_raw.squeeze(1), h, w)
 
-        # if self.debug:
-        #     im_depth = depth[0].detach().cpu()
-        #     plt.imshow(im_depth)
-        #     plt.show()
-
         # Viewpoint
         if step1:
             with torch.no_grad():
@@ -135,10 +130,6 @@ class GAN2Shape(nn.Module):
         albedo = self.albedo_net(images)
         # TODO: add flips?
 
-        # if self.debug:
-        #     im = albedo.detach().cpu()
-        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
-        #     plt.show()
         # Lighting
         if step1:
             with torch.no_grad():
@@ -154,45 +145,22 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, lighting_a,
                                                     lighting_b, lighting_d, albedo)
 
-        # if self.debug:
-        #     im = diffuse_shading.detach().cpu()
-        #     plt.imshow(im[0,0])
-        #     plt.show()
-
         if self.debug:
             im = texture.detach().cpu()
             plt.imshow(im[0].transpose(0, 2).transpose(0, 1))
             plt.show()
 
         recon_depth = self.renderer.warp_canon_depth(depth)
-
-        # if self.debug:
-        #     im = recon_depth.detach().cpu()
-        #     plt.imshow(im[0])
-        #     plt.show()
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
         # FIXME: why is above var not used?
 
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
-        # if self.debug:
-        #     im = grid_2d_from_canon.detach().cpu()
-        #     plt.imshow(im[0,:,:,0])
-        #     plt.show()
-        #     breakpoint=True
-        #     im = grid_2d_from_canon.detach().cpu()
-        #     plt.imshow(im[0,:,:,1])
-        #     plt.show()
         margin = (self.max_depth - self.min_depth) / 2
 
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach()
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
-
-        # if self.debug:
-        #     im = recon_im.detach().cpu()
-        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
-        #     plt.show()
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
@@ -216,8 +184,6 @@ class GAN2Shape(nn.Module):
             print('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
-        # I realized we need to detach them from the computational graph in step 2
-        # Edit: doesn't seem necessary after all
         *tensors, canon_mask = collected
         for t in tensors:
             t.detach()
@@ -269,29 +235,23 @@ class GAN2Shape(nn.Module):
         if self.debug:
             print('Doing step 3')
         """
-        What needs to happen:
-        (Learning the 3D shape)
-          -  include the orginal image among the samples to train on:
-             samples = [original image, projected samples]
-          -  for each sample I-tilde_i:
-                 the networks
-                     viewpoint net V
-                     lighting net L
-                 predict the instance-specific
-                     view v-tilde_i
-                     lighting l-tilde_i
-                 the networks
-                     depth net D
-                     albedo net A
-                 with input: original sample I
-                 output: the shared
-                     depth v-tilde
-                     albedo a-tilde
-                 feed all of this into the reconstruction loss,
-                 whatever it may be, and optimize for the theta's.
-                 with m=batch size?
-                 and lambda_2 as the regularization coefficient.
-          -  anything to return?
+        Learning the 3D shape
+          -  inputs: orginal image and one projected sample
+          -  the networks
+                viewpoint net V
+                lighting net L
+            predict the instance-specific
+                view v-tilde_i
+                lighting l-tilde_i
+            the networks
+                depth net D
+                albedo net A
+            with input: original sample I
+            output: the shared
+                depth v-tilde
+                albedo a-tilde
+            feed all of this into the reconstruction loss and optimize.
+            and lambda_2 as the regularization coefficient.
         """
 
         # Let's assume the proj samples is a single image of dim (1, 3, 128, 128)
@@ -304,11 +264,15 @@ class GAN2Shape(nn.Module):
 
         # View
         view = self.viewpoint_net(projected_sample)  # V(i)
+        # Add mean
+        view += self.view_mean.unsqueeze(0)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
         light = self.lighting_net(projected_sample)   # L(i)
+        # Add mean
+        light += self.light_mean.unsqueeze(0)
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
         # Shading
@@ -323,11 +287,6 @@ class GAN2Shape(nn.Module):
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
-
-        # if self.debug:
-        #     im = recon_im.detach().cpu()
-        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
-        #     plt.show()
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], projected_sample, mask=recon_im_mask[:b])
