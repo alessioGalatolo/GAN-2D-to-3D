@@ -3,9 +3,9 @@ import yaml
 from os import path
 from torchvision import transforms
 from torch import cuda
-from GAN2Shape.trainer import Trainer
-from GAN2Shape.model import GAN2Shape
-from GAN2Shape.dataset import ImageDataset, LatentDataset
+from gan2shape.trainer import Trainer
+from gan2shape.model import GAN2Shape
+from gan2shape.dataset import ImageDataset, LatentDataset
 from plotting import *
 import wandb
 
