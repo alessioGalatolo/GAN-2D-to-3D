@@ -36,7 +36,7 @@ def main():
     transform = transforms.Compose(
             [
                 # FIXME: they don't center crop
-                transforms.CenterCrop(config.get('image_size')),
+                # transforms.CenterCrop(config.get('image_size')),
                 transforms.Resize(config.get('image_size')),
                 transforms.ToTensor()
             ]

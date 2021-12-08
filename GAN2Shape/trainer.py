@@ -127,7 +127,8 @@ class Trainer():
         optim = Trainer.default_optimizer(self.model.depth_net)
         train_loss = []
         print("Pretraining depth net on prior shape")
-        prior = self.prior_shape(image)
+        prior = self.prior_shape(image, shape="ellipsoid")
+
         iterator = tqdm(range(self.n_epochs_prior))
         for epoch in iterator:
             inputs = image.cuda()
@@ -146,7 +147,8 @@ class Trainer():
                     wandb.log({"loss_prior":loss.cpu(),
                                 "image_num": i_batch})
 
-        if plot_depth_map:
+        # if plot_depth_map:
+        if True:
             self.model.plot_predicted_depth_map(image)
         return train_loss
 
@@ -155,7 +157,7 @@ class Trainer():
             height, width = self.image_size, self.image_size
             center_x, center_y = int(width / 2), int(height / 2)
             if shape == "box":
-                box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
+                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
                 prior = torch.zeros([1, height, width])
                 prior[0,
                       center_y-box_height: center_y+box_height,
@@ -165,10 +167,20 @@ class Trainer():
                 h, w = self.image_size, self.image_size
                 c_x, c_y = w / 2, h / 2
 
-                mask = self.image_mask(image)[0, 0] >= 0.7
-                max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
+                ## FIXME: utils.get_mask_range(mask) throws error
+                # see Trainer.image_mase() for more details
+
+                # mask = self.image_mask(image)[0, 0] >= 0.7
+                # max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
+
+                #Temporary "fix"
+                box_height, box_width = int(h*0.5*0.5), int(w*0.8*0.5)
+                max_x, min_x = int(c_x+box_width), int(c_x-box_width)
+                max_y, min_y = int(c_y+box_height), int(c_y-box_height)
+
                 # if self.category in ['car', 'church']:
                 #     max_y = max_y + (max_y - min_y) / 6
+
                 r_pixel = (max_x - min_x) / 2
                 ratio = (max_y - min_y) / (max_x - min_x)
                 c_x = (max_x + min_x) / 2
@@ -201,6 +213,11 @@ class Trainer():
             image[:, 2].sub_(0.406).div_(0.225)
             out = self.model.mask_net(image)
             out = out.argmax(dim=1, keepdim=True)
+            # FIXME: out has no elems == 7, I think something may
+            # be wrong with the mask_net 
+            # This results in an error in Trainer.prior_shape() for the ellipsoid
+            # because the mask is only False
+            # => which gives an error in utils.get_mask_range(mask)
             mask = (out == 7).float()  # FIXME: only cars
         return utils.resize(mask, [self.image_size, self.image_size])
 

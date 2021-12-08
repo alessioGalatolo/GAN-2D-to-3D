@@ -93,7 +93,7 @@ class GAN2Shape(nn.Module):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def depth_net_forward(self, inputs, prior):
-        depth_raw = self.depth_net(inputs)
+        depth_raw = self.depth_net(inputs).squeeze(1)
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.rescale_depth(depth)
@@ -287,7 +287,7 @@ class GAN2Shape(nn.Module):
         recon_depth = self.renderer.warp_canon_depth(depth)
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
         margin = (self.max_depth - self.min_depth) / 2
-        
+
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
@@ -305,7 +305,7 @@ class GAN2Shape(nn.Module):
 
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
-            depth_raw = self.depth_net(data[img_idx].cuda())
+            depth_raw = self.depth_net(data.cuda())
             depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
             depth = torch.tanh(depth_centered)
             depth = self.rescale_depth(depth)[0, 0, :].cpu().numpy()
