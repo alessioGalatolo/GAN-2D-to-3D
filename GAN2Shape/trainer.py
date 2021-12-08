@@ -52,7 +52,7 @@ class Trainer():
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
             # Pretrain depth net on the prior shape
-            self.pretrain_on_prior(image_batch, plot_depth_map)
+            # self.pretrain_on_prior(image_batch, plot_depth_map)
             for stage in tqdm(range(len(stages))):
                 iterator.set_description("Stage: " + str(stage) + "/"
                                          + str(len(stages)) + ". Image: "

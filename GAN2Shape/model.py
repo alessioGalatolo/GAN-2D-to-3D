@@ -79,6 +79,11 @@ class GAN2Shape(nn.Module):
         view_scale = config.get('view_scale', 1)
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
+        view_mvn = torch.load(view_mvn_path)
+        light_mvn = torch.load(light_mvn_path)
+        self.view_mean = view_mvn['mean'].cuda()
+        self.light_mean = light_mvn['mean'].cuda()
+
         # Losses
         self.photo_loss = PhotometricLoss()
         self.percep_loss = PerceptualLoss()
@@ -120,7 +125,8 @@ class GAN2Shape(nn.Module):
                 view = self.viewpoint_net(images)
         else:
             view = self.viewpoint_net(images)
-        # TODO: add mean and flip?
+        # Add mean
+        view += self.view_mean.unsqueeze(0)
 
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)

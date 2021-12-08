@@ -12,6 +12,10 @@ view_scale: 1
 refinement_iterations: 1
 n_proj_samples: 10
 
+## View-Light sampler
+view_mvn_path: checkpoints/view_light/view_mvn.pth
+light_mvn_path: checkpoints/view_light/light_mvn.pth
+
 ## renderer
 rot_center_depth: 1.0
 fov: 10  # in degrees
