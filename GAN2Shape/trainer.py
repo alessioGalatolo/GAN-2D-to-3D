@@ -46,25 +46,25 @@ class Trainer():
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
         # Sequential training of the D,A,L,V nets
-        for stage in tqdm(range(len(stages))):
-            running_loss = 0.0
 
-            old_collected = [None]*len(images)
-            for step in [1, 2]:  # step 1, 2
-                step_iterator = tqdm(range(stages[stage][f'step{step}']))
-                current_collected = [None]*len(images)
-                for _ in step_iterator:
-                    shuffle(shuffle_ids)
-                    iterator = tqdm(shuffle_ids)
-                    for i_batch in iterator:
-                        iterator.set_description("Stage: " + str(stage) + "/"
-                                                 + str(len(stages)) + ". Image: "
-                                                 + str(i_batch+1) + "/"
-                                                 + str(len(images)) + ".")
-                        image_batch = images[i_batch].cuda()
-                        latent_batch = latents[i_batch].cuda()
-                        # Pretrain depth net on the prior shape
-                        self.pretrain_on_prior(image_batch, plot_depth_map)
+        iterator = tqdm(shuffle_ids)
+        for i_batch in iterator:
+            image_batch = images[i_batch].cuda()
+            latent_batch = latents[i_batch].cuda()
+            # Pretrain depth net on the prior shape
+            self.pretrain_on_prior(image_batch, plot_depth_map)
+            for stage in tqdm(range(len(stages))):
+                iterator.set_description("Stage: " + str(stage) + "/"
+                                         + str(len(stages)) + ". Image: "
+                                         + str(i_batch+1) + "/"
+                                         + str(len(images)) + ".")
+                running_loss = 0.0
+
+                old_collected = [None]*len(images)
+                for step in [1, 2]:  # step 1, 2
+                    step_iterator = tqdm(range(stages[stage][f'step{step}']))
+                    current_collected = [None]*len(images)
+                    for _ in step_iterator:
                         optim.zero_grad()
                         collected = old_collected[i_batch]
 
@@ -93,22 +93,11 @@ class Trainer():
                                        f"loss_step{step}": loss})
                 old_collected = current_collected
 
-            # step 3
-            step_iterator = tqdm(range(stages[stage]['step3']))
-            current_collected = []
-            for _ in step_iterator:
-                current_collected = [None]*len(images)
-                shuffle(shuffle_ids)
-                iterator = tqdm(shuffle_ids)
-                for i_batch in iterator:
-                    iterator.set_description("Stage: " + str(stage) + "/"
-                                             + str(len(stages)) + ". Image: "
-                                             + str(i_batch+1) + "/"
-                                             + str(len(images)) + ".")
-                    image_batch = images[i_batch].cuda()
-                    latent_batch = latents[i_batch].cuda()
-                    # Pretrain depth net on the prior shape
-                    self.pretrain_on_prior(image_batch, plot_depth_map)
+                # step 3
+                step_iterator = tqdm(range(stages[stage]['step3']))
+                current_collected = []
+                for _ in step_iterator:
+                    current_collected = [None]*len(images)
                     projected_samples, masks = old_collected[i_batch]
                     shuffle_projected = [i for i in range(len(projected_samples))]
                     shuffle(shuffle_projected)
