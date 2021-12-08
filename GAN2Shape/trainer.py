@@ -38,7 +38,9 @@ class Trainer():
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [  {'step1': 7, 'step2': 7, 'step3': 6},
+        #             {'step1': 2, 'step2': 5, 'step3': 4}]
+        # # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
         stages = [  {'step1': 1, 'step2': 1, 'step3': 1},
                     {'step1': 1, 'step2': 1, 'step3': 1}]
 

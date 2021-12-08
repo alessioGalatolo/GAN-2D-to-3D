@@ -47,14 +47,12 @@ def main():
     latents = LatentDataset(config.get('root_path'))
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config,
-                      debug=True, plot_intermediate=True,
+                      debug=False, plot_intermediate=True,
                       log_wandb=args.WANDB)
 
     # plot_originals(images)
     trainer.fit(images, latents)
     return
-
-
 
 
 if __name__ == "__main__":
