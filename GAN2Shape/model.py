@@ -37,7 +37,6 @@ class GAN2Shape(nn.Module):
 
         self.image_size = config.get('image_size')
         self.collected = None
-        self.prior = self.init_prior_shape("box").cuda()
 
         self.lighting_net = networks.LightingNet(self.image_size, self.debug).cuda()
         self.viewpoint_net = networks.ViewpointNet(self.image_size, self.debug).cuda()
@@ -45,10 +44,10 @@ class GAN2Shape(nn.Module):
         self.albedo_net = networks.AlbedoNet(self.image_size, self.debug).cuda()
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size, debug=self.debug).cuda()
 
-        self.pspnet = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
-        pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
-        self.pspnet.load_state_dict(pspnet_checkpoint['state_dict'],
-                                    strict=False)
+        self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
+        pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_ade20k.pth')
+        self.mask_net.load_state_dict(pspnet_checkpoint['state_dict'],
+                                      strict=False)
 
         # Misc
         self.n_proj_samples = config.get('n_proj_samples', 1)
@@ -87,29 +86,12 @@ class GAN2Shape(nn.Module):
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
-    # FIXME: why is this here and not inside the depth net class?
-    # I don't quite remember why but we can move it
-    # + I think it's unused -> It is used in the trainer to pretrain on prior
-    def depth_net_forward(self, inputs):
+    def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs)
         depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = torch.tanh(depth_centered).squeeze(0)
         depth = self.rescale_depth(depth)
-        return F.mse_loss(depth, self.prior.detach())
-
-    def init_prior_shape(self, type="box"):
-        with torch.no_grad():
-            height, width = self.image_size, self.image_size
-            center_x, center_y = int(width / 2), int(height / 2)
-            if type == "box":
-                box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
-                prior = torch.zeros([1, height, width])
-                prior[0,
-                      center_y-box_height: center_y+box_height,
-                      center_x-box_width: center_x+box_width] = 1
-                return prior
-            else:
-                return torch.ones([1, height, width])
+        return F.mse_loss(depth, prior.detach())
 
     def forward_step1(self, images, latents, collected, step1=True):
         b = 1
@@ -139,11 +121,9 @@ class GAN2Shape(nn.Module):
             view = self.viewpoint_net(images)
         # TODO: add mean and flip?
 
-        
-
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
-        
+
         # Albedo
         albedo = self.albedo_net(images)
         # TODO: add flips?
@@ -164,7 +144,7 @@ class GAN2Shape(nn.Module):
         normal = self.renderer.get_normal_from_depth(depth)
         diffuse_shading, texture = self.get_shading(normal, lighting_a,
                                                     lighting_b, lighting_d, albedo)
-        
+
         # if self.debug:
         #     im = diffuse_shading.detach().cpu()
         #     plt.imshow(im[0,0])
@@ -172,7 +152,7 @@ class GAN2Shape(nn.Module):
 
         if self.debug:
             im = texture.detach().cpu()
-            plt.imshow(im[0].transpose(0,2).transpose(0,1))
+            plt.imshow(im[0].transpose(0, 2).transpose(0, 1))
             plt.show()
 
         recon_depth = self.renderer.warp_canon_depth(depth)
@@ -502,7 +482,7 @@ class GAN2Shape(nn.Module):
                 if hasattr(layer, 'reset_parameters'):
                     # print("Resetting layer")
                     layer.reset_parameters()
-    
+
     def reinitialize_model(self):
         print(">>>RESETTING ALL WEIGHTS<<<")
         self.reset_params(self.lighting_net)
@@ -510,6 +490,7 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.depth_net)
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
+
 
 class ViewLightSampler():
     def __init__(self, view_mvn_path, light_mvn_path, view_scale):
