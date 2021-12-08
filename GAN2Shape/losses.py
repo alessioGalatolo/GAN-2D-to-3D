@@ -1,4 +1,4 @@
-from GAN2Shape.stylegan2 import PerceptualLoss as PL
+from gan2shape.stylegan2 import PerceptualLoss as PL
 import torch
 import torch.nn as nn
 
