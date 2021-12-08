@@ -284,7 +284,8 @@ class GAN2Shape():
                 self.canon_mask = self.canon_mask_all[idx].cuda()
 
     def init_netD_ellipsoid(self):
-        ellipsoid = self.init_ellipsoid()
+        # ellipsoid = self.init_ellipsoid()
+        ellipsoid = self.init_box()
         optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.netD.parameters()),
             lr=0.0001, betas=(0.9, 0.999), weight_decay=5e-4)
@@ -301,6 +302,16 @@ class GAN2Shape():
             optimizer.step()
             if i % 100 == 0 and self.rank == 0:
                 print(f"Iter: {i}, Loss: {loss.item():.6f}")
+
+    def init_box(self):
+        height, width = self.image_size, self.image_size
+        center_x, center_y = int(width / 2), int(height / 2)
+        box_height, box_width = int(height*0.7*0.5), int(width*0.7*0.5)
+        prior = torch.zeros([1, height, width])
+        prior[0,
+                center_y-box_height: center_y+box_height,
+                center_x-box_width: center_x+box_width] = 1
+        return prior.cuda()
 
     def init_ellipsoid(self):
         with torch.no_grad():
