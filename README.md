@@ -1,5 +1,8 @@
 # Todo-list
 - Add saving of models/checkpoints
+- Add support for batches:
+  - Image batches (Right now we are training for 1 image at a time, inefficient)
+  - Fix support for 100 projected samples of the same image (and implement batches for these too)
 - Fix ellipsoid/mask_net
 - Add proper logging/make good looking graphs
 - Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)
