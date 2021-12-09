@@ -22,6 +22,7 @@ class Trainer():
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
         self.debug = debug
+        self.prior_name =  model_config.get('prior_name', "box")
 
     def fit(self, images, latents, plot_depth_map=False):
         # self.model.reinitialize_model()
@@ -33,15 +34,15 @@ class Trainer():
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400}]
-        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40}]
+        stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+                  {'step1': 20, 'step2': 50, 'step3': 40},
+                  {'step1': 20, 'step2': 50, 'step3': 40},
+                  {'step1': 20, 'step2': 50, 'step3': 40}]
         # stages = [  {'step1': 7, 'step2': 7, 'step3': 6},
         #             {'step1': 2, 'step2': 5, 'step3': 4}]
         # # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
         # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
-        stages = [  {'step1': 100, 'step2': 1, 'step3': 1}]
+        # stages = [  {'step1': 100, 'step2': 1, 'step3': 1}]
 
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -53,7 +54,6 @@ class Trainer():
             latent_batch = latents[i_batch].cuda()
 
             # Pretrain depth net on the prior shape
-
             self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
             for stage in tqdm(range(len(stages))):
@@ -73,8 +73,7 @@ class Trainer():
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
                             (image_batch, latent_batch, collected)
-                        # We want to make sure we keep track of the index corresponding to the original image
-                        # hence this change
+                        
                         current_collected[i_batch] = collected
                         loss.backward()
                         optim.step()
@@ -115,7 +114,8 @@ class Trainer():
             if self.plot_intermediate:
                 if i_batch % 3 == 0:
                     recon_im, recon_depth = self.model.evaluate_results(image_batch)
-                    plot_reconstructions(recon_im.cpu(), recon_depth.cpu(),
+                    recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+                    plot_reconstructions(recon_im, recon_depth,
                             total_it=str(total_it), im_idx=str(i_batch), stage=str(stage))
 
             # print(f'Loss: {running_loss}') # FIXME
@@ -127,7 +127,7 @@ class Trainer():
         optim = Trainer.default_optimizer(self.model.depth_net)
         train_loss = []
         print("Pretraining depth net on prior shape")
-        prior = self.prior_shape(image, shape="ellipsoid")
+        prior = self.prior_shape(image, shape=self.prior_name)
 
         iterator = tqdm(range(self.n_epochs_prior))
         for epoch in iterator:
@@ -147,8 +147,7 @@ class Trainer():
                     wandb.log({"loss_prior":loss.cpu(),
                                 "image_num": i_batch})
 
-        # if plot_depth_map:
-        if True:
+        if plot_depth_map:
             self.model.plot_predicted_depth_map(image)
         return train_loss
 
@@ -168,7 +167,7 @@ class Trainer():
                 c_x, c_y = w / 2, h / 2
 
                 ## FIXME: utils.get_mask_range(mask) throws error
-                # see Trainer.image_mase() for more details
+                # see Trainer.image_mask() for more details
 
                 # mask = self.image_mask(image)[0, 0] >= 0.7
                 # max_y, min_y, max_x, min_x = utils.get_mask_range(mask)

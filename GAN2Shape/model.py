@@ -93,10 +93,10 @@ class GAN2Shape(nn.Module):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def depth_net_forward(self, inputs, prior):
-        depth_raw = self.depth_net(inputs).squeeze(1)
-        depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-        depth = torch.tanh(depth_centered).squeeze(0)
-        depth = self.rescale_depth(depth)
+        b = 1
+        h, w = self.image_size, self.image_size
+        depth_raw = self.depth_net(inputs)
+        depth = self.get_clamped_depth(depth_raw.squeeze(1), h, w)
         return F.mse_loss(depth, prior.detach())
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):

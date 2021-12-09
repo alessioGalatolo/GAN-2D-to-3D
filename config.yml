@@ -10,7 +10,8 @@ root_path: data/car
 learning_rate: 0.0001
 view_scale: 1
 refinement_iterations: 1
-n_proj_samples: 2
+n_proj_samples: 10
+prior_name: ellipsoid
 
 ## View-Light sampler
 view_mvn_path: checkpoints/view_light/view_mvn.pth
