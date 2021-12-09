@@ -27,7 +27,12 @@ class Trainer():
 
     def fit(self, images, latents, plot_depth_map=False):
         # self.model.reinitialize_model()
-        optim = Trainer.default_optimizer(self.model, lr=self.learning_rate)
+        self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net], lr=self.learning_rate)
+        self.optim_step2 = Trainer.default_optimizer([self.model.offset_encoder_net], lr=self.learning_rate)
+        self.optim_step3 = Trainer.default_optimizer([  self.model.lighting_net,
+                                                        self.model.viewpoint_net,
+                                                        self.model.depth_net,
+                                                        self.model.albedo_net], lr=self.learning_rate)
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
@@ -35,52 +40,39 @@ class Trainer():
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400}]
-        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        stages = [  {'step1': 200, 'step2': 7, 'step3': 6},
-                    {'step1': 100, 'step2': 5, 'step3': 4}]
-        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
-        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
-        # stages = [  {'step1': 100, 'step2': 1, 'step3': 1}]
-
+        stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+                  {'step1': 20, 'step2': 50, 'step3': 40},
+                  {'step1': 20, 'step2': 50, 'step3': 40},
+                  {'step1': 20, 'step2': 50, 'step3': 40}]
+        # stages = [  {'step1': 100, 'step2': 7, 'step3': 6},
+        #             {'step1': 2, 'step2': 5, 'step3': 4}]
+        self.n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
         # Sequential training of the D,A,L,V nets
 
         iterator = tqdm(shuffle_ids)
-        for i_batch in iterator:
+        for i_batch in shuffle_ids:
+            print(f'Training on image {i_batch}/{len(shuffle_ids)}')
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
 
             # Pretrain depth net on the prior shape
             self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
-            
-            #Before step 1
-            if self.debug:
-                if plot_depth_map:
-                    self.model.plot_predicted_depth_map(image_batch)
-                paramsum=0
-                for param in self.model.depth_net.named_parameters():
-                    param = param[1]
-                    s = torch.sum(param)
-                    paramsum+=torch.sum(param)
-                print(f"Depth param sum = {paramsum:.100}\n")
-                breakpoint=True
 
-
-            for stage in tqdm(range(len(stages))):
+            for stage in range(self.n_stages):
                 iterator.set_description("Stage: " + str(stage) + "/"
-                                         + str(len(stages)) + ". Image: "
+                                         + str(self.n_stages) + ". Image: "
                                          + str(i_batch+1) + "/"
                                          + str(len(images)) + ".")
                 running_loss = 0.0
 
                 old_collected = [None]*len(images)
                 for step in [1, 2]:  # step 1, 2
+                    print(f"Doing step {step}, stage {stage + 1}/{self.n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
                     current_collected = [None]*len(images)
+                    optim = getattr(self,f'optim_step{step}')
                     for _ in step_iterator:
                         optim.zero_grad()
                         collected = old_collected[i_batch]
@@ -101,22 +93,11 @@ class Trainer():
                                        "image_num": i_batch})
                     old_collected = current_collected
 
-                    #After step 1 or 2
-                    if self.debug:
-                        if plot_depth_map:
-                            self.model.plot_predicted_depth_map(image_batch)
-                            breakpoint=True
-                        paramsum=0
-                        for param in self.model.depth_net.named_parameters():
-                            param = param[1]
-                            s = torch.sum(param)
-                            paramsum+=torch.sum(param)
-                        print(f"Depth param sum = {paramsum:.100}\n")
-                        breakpoint=True
-
+                print(f"Doing step 3, stage {stage + 1}/{self.n_stages}")
                 # step 3
                 step_iterator = tqdm(range(stages[stage]['step3']))
                 current_collected = []
+                optim = self.optim_step3
                 for _ in step_iterator:
                     current_collected = [None]*len(images)
                     projected_samples, masks = old_collected[i_batch]
@@ -151,7 +132,7 @@ class Trainer():
         print('Finished Training')
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
-        optim = Trainer.default_optimizer(self.model.depth_net)
+        optim = Trainer.default_optimizer([self.model.depth_net])
         train_loss = []
         print("Pretraining depth net on prior shape")
         prior = self.prior_shape(image, shape=self.prior_name)
@@ -248,8 +229,11 @@ class Trainer():
         return utils.resize(mask, [self.image_size, self.image_size])
 
     @staticmethod
-    def default_optimizer(model, lr=1e-4, betas=(0.9, 0.999), weight_decay=5e-4):
-        depth_net_params = filter(lambda param: param.requires_grad,
+    def default_optimizer(model_list, lr=1e-4, betas=(0.9, 0.999), weight_decay=5e-4):
+        param_list = []
+        for model in model_list:
+            params = filter(lambda param: param.requires_grad,
                                   model.parameters())
-        return torch.optim.Adam(depth_net_params, lr=lr,
+            param_list+=list(params)
+        return torch.optim.Adam(param_list, lr=lr,
                                 betas=betas, weight_decay=weight_decay)
