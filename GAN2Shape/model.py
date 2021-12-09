@@ -54,7 +54,8 @@ class GAN2Shape(nn.Module):
         self.n_proj_samples = config.get('n_proj_samples', 1)
         self.max_depth = 1.1
         self.min_depth = 0.9
-        self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
+        # self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
+        self.border_depth = 1.02
         self.lam_perc = 1
         self.lam_smooth = 0.01
         self.lam_regular = 0.01
@@ -93,11 +94,12 @@ class GAN2Shape(nn.Module):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def depth_net_forward(self, inputs, prior):
-        b = 1
-        h, w = self.image_size, self.image_size
         depth_raw = self.depth_net(inputs)
-        depth = self.get_clamped_depth(depth_raw.squeeze(1), h, w)
-        return F.mse_loss(depth, prior.detach())
+        depth = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
+        depth = depth.tanh()
+        depth = self.rescale_depth(depth)
+        return F.mse_loss(depth[0], prior.detach())
+            
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
@@ -145,10 +147,10 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, lighting_a,
                                                     lighting_b, lighting_d, albedo)
 
-        if self.debug:
-            im = texture.detach().cpu()
-            plt.imshow(im[0].transpose(0, 2).transpose(0, 1))
-            plt.show()
+        # if self.debug:
+        #     im = texture.detach().cpu()
+        #     plt.imshow(im[0].transpose(0, 2).transpose(0, 1))
+        #     plt.show()
 
         recon_depth = self.renderer.warp_canon_depth(depth)
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
@@ -305,15 +307,13 @@ class GAN2Shape(nn.Module):
 
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
-            depth_raw = self.depth_net(data.cuda())
-            depth_centered = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
-            depth = torch.tanh(depth_centered)
-            depth = self.rescale_depth(depth)[0, 0, :].cpu().numpy()
+            depth_raw = self.depth_net(data.cuda()).squeeze(1)
+            depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size).cpu().numpy()
             x = np.arange(0, self.image_size, 1)
             y = np.arange(0, self.image_size, 1)
             X, Y = np.meshgrid(x, y)
             fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-            ax.plot_surface(X, Y, depth, cmap=cm.coolwarm,
+            ax.plot_surface(X, Y, depth[0], cmap=cm.coolwarm,
                             linewidth=0, antialiased=False)
             plt.show()
 

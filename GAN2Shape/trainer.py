@@ -1,3 +1,4 @@
+from logging import debug
 import math
 import torch
 from tqdm import tqdm
@@ -34,13 +35,13 @@ class Trainer():
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400},
         #           {'step1': 200, 'step2': 500, 'step3': 400}]
-        stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40},
-                  {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [  {'step1': 7, 'step2': 7, 'step3': 6},
-        #             {'step1': 2, 'step2': 5, 'step3': 4}]
-        # # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40},
+        #           {'step1': 20, 'step2': 50, 'step3': 40}]
+        stages = [  {'step1': 200, 'step2': 7, 'step3': 6},
+                    {'step1': 100, 'step2': 5, 'step3': 4}]
+        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
         # stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
         # stages = [  {'step1': 100, 'step2': 1, 'step3': 1}]
 
@@ -55,6 +56,19 @@ class Trainer():
 
             # Pretrain depth net on the prior shape
             self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+            
+            #Before step 1
+            if self.debug:
+                if plot_depth_map:
+                    self.model.plot_predicted_depth_map(image_batch)
+                paramsum=0
+                for param in self.model.depth_net.named_parameters():
+                    param = param[1]
+                    s = torch.sum(param)
+                    paramsum+=torch.sum(param)
+                print(f"Depth param sum = {paramsum:.100}\n")
+                breakpoint=True
+
 
             for stage in tqdm(range(len(stages))):
                 iterator.set_description("Stage: " + str(stage) + "/"
@@ -86,6 +100,19 @@ class Trainer():
                                        f"loss_step{step}": loss,
                                        "image_num": i_batch})
                     old_collected = current_collected
+
+                    #After step 1 or 2
+                    if self.debug:
+                        if plot_depth_map:
+                            self.model.plot_predicted_depth_map(image_batch)
+                            breakpoint=True
+                        paramsum=0
+                        for param in self.model.depth_net.named_parameters():
+                            param = param[1]
+                            s = torch.sum(param)
+                            paramsum+=torch.sum(param)
+                        print(f"Depth param sum = {paramsum:.100}\n")
+                        breakpoint=True
 
                 # step 3
                 step_iterator = tqdm(range(stages[stage]['step3']))
