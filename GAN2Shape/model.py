@@ -98,8 +98,7 @@ class GAN2Shape(nn.Module):
         depth = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
         depth = depth.tanh()
         depth = self.rescale_depth(depth)
-        return F.mse_loss(depth[0], prior.detach())
-            
+        return F.mse_loss(depth[0], prior.detach())            
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
@@ -123,7 +122,7 @@ class GAN2Shape(nn.Module):
         else:
             view = self.viewpoint_net(images)
         # Add mean
-        view += self.view_mean.unsqueeze(0)
+        view = view + self.view_mean.unsqueeze(0)
 
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
@@ -139,18 +138,13 @@ class GAN2Shape(nn.Module):
         else:
             lighting = self.lighting_net(images)
         #Add mean
-        lighting += self.light_mean.unsqueeze(0)
+        lighting = lighting + self.light_mean.unsqueeze(0)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
         # Shading
         normal = self.renderer.get_normal_from_depth(depth)
         diffuse_shading, texture = self.get_shading(normal, lighting_a,
                                                     lighting_b, lighting_d, albedo)
-
-        # if self.debug:
-        #     im = texture.detach().cpu()
-        #     plt.imshow(im[0].transpose(0, 2).transpose(0, 1))
-        #     plt.show()
 
         recon_depth = self.renderer.warp_canon_depth(depth)
         recon_normal = self.renderer.get_normal_from_depth(recon_depth)
@@ -229,44 +223,21 @@ class GAN2Shape(nn.Module):
                                             pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
-
-        # if self.debug:
-        #     proj_im = projected_image.detach().cpu()
-        #     plt.imshow(proj_im[0].transpose(0,2).transpose(0,1))
-        #     plt.show()
         collected = projected_image.detach().cpu(), mask.detach().cpu()
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
         if self.debug:
             print('Doing step 3')
-        """
-        Learning the 3D shape
-          -  inputs: orginal image and one projected sample
-          -  the networks
-                viewpoint net V
-                lighting net L
-            predict the instance-specific
-                view v-tilde_i
-                lighting l-tilde_i
-            the networks
-                depth net D
-                albedo net A
-            with input: original sample I
-            output: the shared
-                depth v-tilde
-                albedo a-tilde
-            feed all of this into the reconstruction loss and optimize.
-            and lambda_2 as the regularization coefficient.
-        """
 
-        # Let's assume the proj samples is a single image of dim (1, 3, 128, 128)
+        #--------- Extract Albedo and Depth from the original image ----------------
         projected_sample, mask = collected
         _, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
+        #--------- Extract View and Light from the projected sample ----------------
         b = 1
-        _, h, w = projected_sample[0].shape
+        _, h, w = projected_sample[0].shape #FIXME: unused
 
         # View
         view = self.viewpoint_net(projected_sample)  # V(i)
@@ -395,10 +366,6 @@ class GAN2Shape(nn.Module):
         diffuse_shading = (normal * lighting_d.view(-1, 1, 1, 3)).sum(3).clamp(min=0).unsqueeze(1)
         shading = lighting_a.view(-1, 1, 1, 1) + lighting_b.view(-1, 1, 1, 1) * diffuse_shading
         texture = (albedo/2+0.5) * shading * 2 - 1
-        # if self.debug:
-        #     im = texture.detach().cpu()
-        #     plt.imshow(im[0].transpose(0,2).transpose(0,1))
-        #     plt.show()
 
         return diffuse_shading, texture
 

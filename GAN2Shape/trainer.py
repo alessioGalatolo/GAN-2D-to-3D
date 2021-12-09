@@ -36,16 +36,15 @@ class Trainer():
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
-        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400}]
+        # stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400},
+        #           {'step1': 200, 'step2': 500, 'step3': 400}]
         # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [  {'step1': 100, 'step2': 7, 'step3': 6},
-        #             {'step1': 2, 'step2': 5, 'step3': 4}]
+                #   {'step1': 20, 'step2': 50, 'step3': 40}]
+        stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
         self.n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -58,7 +57,7 @@ class Trainer():
             latent_batch = latents[i_batch].cuda()
 
             # Pretrain depth net on the prior shape
-            self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+            # self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
             for stage in range(self.n_stages):
                 iterator.set_description("Stage: " + str(stage) + "/"
