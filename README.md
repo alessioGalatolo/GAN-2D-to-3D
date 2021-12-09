@@ -9,9 +9,11 @@
 - Experiment with new priors (improve box + maybe something else?)?
 - Experiment with loss/regularization?
 - Training
-  - LSUN Bus
-  - LSUN Sheep
-  - Roboflow’s Fruit dataset
+  - LSUN Car (replication)
+  - LSUN Horse (replication)
+  - LSUN Bus (extention)
+  - LSUN Sheep (extention)
+  - Roboflow’s Fruit dataset (extention)
 
 # Unsupervised 3D shape retrieval from pre-trained GANs
 Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
