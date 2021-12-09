@@ -1,3 +1,20 @@
+# Todo-list
+- Add saving of models/checkpoints
+- Fix ellipsoid/mask_net
+- Add proper logging/make good looking graphs
+- Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)
+- Add plots/anims for multiple viewpoints and light? 
+  (I think we need to construct a function whichs samples from an "interpolation" between two viewpoints and not randomly)
+- Refactor code - there is currently a lot of unnecessary repitition
+- Experiment with new priors (improve box + maybe something else?)?
+- Experiment with loss/regularization?
+- Training
+  - LSUN Car (replication)
+  - LSUN Horse (replication)
+  - LSUN Bus (extention)
+  - LSUN Sheep (extention)
+  - Roboflow’s Fruit dataset (extention)
+
 # Unsupervised 3D shape retrieval from pre-trained GANs
 Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 
