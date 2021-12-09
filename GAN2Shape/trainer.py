@@ -145,15 +145,15 @@ class Trainer():
             loss.backward()
             optim.step()
 
-        if epoch % self.n_epochs_prior / 10 == 0:
-            with torch.no_grad():
-                iterator.set_description("Epoch (prior): " + str(epoch+1) + "/"
-                                         + str(self.n_epochs_prior)
-                                         + ". Loss = " + str(loss.cpu()))
-                
-                if self.log_wandb:
-                    wandb.log({"loss_prior":loss.cpu(),
-                                "image_num": i_batch})
+            if epoch % self.n_epochs_prior / 10 == 0:
+                with torch.no_grad():
+                    iterator.set_description("Epoch (prior): " + str(epoch+1) + "/"
+                                            + str(self.n_epochs_prior)
+                                            + ". Loss = " + str(loss.cpu()))
+                    
+            if self.log_wandb:
+                wandb.log({"loss_prior":loss.cpu(),
+                            "image_num": i_batch})
 
         if plot_depth_map:
             self.model.plot_predicted_depth_map(image)
