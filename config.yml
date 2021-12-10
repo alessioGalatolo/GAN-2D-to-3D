@@ -13,9 +13,13 @@ refinement_iterations: 1
 n_proj_samples: 2
 prior_name: ellipsoid
 
-## View-Light sampler
+## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
+
+our_nets_ckpts:
+  VLADE_nets: checkpoints/our_nets/
+  other: '?'
 
 ## renderer
 rot_center_depth: 1.0

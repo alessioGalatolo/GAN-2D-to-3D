@@ -1,5 +1,7 @@
 import math
 import numpy as np
+import datetime
+import os
 
 from matplotlib import cm
 import matplotlib.pyplot as plt
@@ -8,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
+from torch.utils import data
 
 from gan2shape import utils
 from gan2shape import networks
@@ -90,15 +93,16 @@ class GAN2Shape(nn.Module):
         self.percep_loss = PerceptualLoss()
         self.smooth_loss = SmoothLoss()
 
+        self.ckpt_paths = config.get('our_nets_ckpts')
+
+
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def depth_net_forward(self, inputs, prior):
-        depth_raw = self.depth_net(inputs)
-        depth = depth_raw - depth_raw.view(1,1,-1).mean(2).view(1,1,1,1)
-        depth = depth.tanh()
-        depth = self.rescale_depth(depth)
-        return F.mse_loss(depth[0], prior.detach())            
+        depth_raw = self.depth_net(inputs).squeeze(1)
+        depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size)
+        return F.mse_loss(depth[0], prior.detach())
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
@@ -388,6 +392,26 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.depth_net)
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
+    
+    def save_checkpoint(self, total_it, dataset='car'):
+        try:
+            nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
+            now = datetime.datetime.now()
+            now = now.strftime("%d_%m_%H_%M")
+            for net in nets:
+                save_dict={ 'total_it': total_it,
+                            'dataset': dataset,
+                            'model_state_dict':getattr(self,f'{net}_net').state_dict()}
+
+                filename = self.ckpt_paths['VLADE_nets'] + dataset
+                if not os.path.exists(filename):
+                    os.makedirs(filename)
+                filename += '/' + net + '_' + str(total_it) + '_it_' + now + '.pth'
+                with open(filename, 'wb') as f:
+                    torch.save(save_dict, f)
+        except Exception as e:
+            print("Error: ", e)
+            print(">>>Saving failed... continuing training<<<")
 
 
 class ViewLightSampler():

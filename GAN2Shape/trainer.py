@@ -15,13 +15,15 @@ class Trainer():
                  model_config,
                  debug=False,
                  plot_intermediate=False,
-                 log_wandb=False):
+                 log_wandb=False,
+                 save_ckpts=False):
         self.model = model(model_config, debug)
         self.image_size = model_config.get('image_size')
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1000)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
+        self.save_ckpts = save_ckpts
         self.debug = debug
         self.prior_name =  model_config.get('prior_name', "box")
 
@@ -43,13 +45,15 @@ class Trainer():
         # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
-                #   {'step1': 20, 'step2': 50, 'step3': 40}]
+        #           {'step1': 20, 'step2': 50, 'step3': 40}]
         stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
         self.n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
+        # shuffle_ids = [0]
         # Sequential training of the D,A,L,V nets
 
+        #-----------------Main loop through all images--------------------------
         iterator = tqdm(shuffle_ids)
         for i_batch in shuffle_ids:
             print(f'Training on image {i_batch}/{len(shuffle_ids)}')
@@ -59,15 +63,17 @@ class Trainer():
             # Pretrain depth net on the prior shape
             # self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
+            #-----------------Loop through all stages---------------------------
             for stage in range(self.n_stages):
                 iterator.set_description("Stage: " + str(stage) + "/"
                                          + str(self.n_stages) + ". Image: "
                                          + str(i_batch+1) + "/"
                                          + str(len(images)) + ".")
                 running_loss = 0.0
-
                 old_collected = [None]*len(images)
-                for step in [1, 2]:  # step 1, 2
+
+                #-----------------------Step 1 and 2----------------------------
+                for step in [1, 2]:
                     print(f"Doing step {step}, stage {stage + 1}/{self.n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
                     current_collected = [None]*len(images)
@@ -92,8 +98,8 @@ class Trainer():
                                        "image_num": i_batch})
                     old_collected = current_collected
 
+                #-----------------------------Step 3----------------------------
                 print(f"Doing step 3, stage {stage + 1}/{self.n_stages}")
-                # step 3
                 step_iterator = tqdm(range(stages[stage]['step3']))
                 current_collected = []
                 optim = self.optim_step3
@@ -124,6 +130,10 @@ class Trainer():
                     recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
                     plot_reconstructions(recon_im, recon_depth,
                             total_it=str(total_it), im_idx=str(i_batch), stage=str(stage))
+            
+            if self.save_ckpts:
+                self.model.save_checkpoint(total_it)
+
 
             # print(f'Loss: {running_loss}') # FIXME
             # maybe WandB logging is enough?

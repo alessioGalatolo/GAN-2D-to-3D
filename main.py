@@ -18,7 +18,12 @@ def main():
     parser.add_argument('--wandb', 
                         dest='WANDB', 
                         action='store_true', 
-                        default=False)  
+                        default=False)
+    parser.add_argument('--save_ckpts', 
+                        dest='SAVE_CKPTS',
+                        action='store_true', 
+                        default=False,
+                        help='Save model weights after each stage')
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -47,8 +52,8 @@ def main():
     latents = LatentDataset(config.get('root_path'))
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config,
-                      debug=True, plot_intermediate=True,
-                      log_wandb=args.WANDB)
+                      debug=False, plot_intermediate=True,
+                      log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS)
 
     # plot_originals(images)
     trainer.fit(images, latents, plot_depth_map=True)
