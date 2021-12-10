@@ -1,22 +1,28 @@
 # Todo-list
-- Add saving of models/checkpoints
+- ~~Add saving of models/checkpoints~~
 - Add support for batches:
   - Image batches (Right now we are training for 1 image at a time, inefficient)
   - Fix support for 100 projected samples of the same image (and implement batches for these too)
-- Fix ellipsoid/mask_net
+- ~~Fix ellipsoid/mask_net~~
 - Add proper logging/make good looking graphs
 - Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)
 - Add plots/anims for multiple viewpoints and light? 
-  (I think we need to construct a function whichs samples from an "interpolation" between two viewpoints and not randomly)
-- Refactor code - there is currently a lot of unnecessary repitition
+  (I think we need to construct a function which samples from an "interpolation" between two viewpoints and not randomly)
+- Refactor code - there is currently a lot of unnecessary repetition
 - Experiment with new priors (improve box + maybe something else?)?
 - Experiment with loss/regularization?
 - Training
   - LSUN Car (replication)
   - LSUN Horse (replication)
-  - LSUN Bus (extention)
-  - LSUN Sheep (extention)
-  - Roboflow’s Fruit dataset (extention)
+  - LSUN Bus (extension)
+  - LSUN Sheep (extension)
+  - Roboflow’s Fruit dataset (extension)  
+
+
+
+>Roboflow’s Fruit dataset (extension)  
+
+Not sure we can do this (check stylegan is trained for this)
 
 # Unsupervised 3D shape retrieval from pre-trained GANs
 Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
