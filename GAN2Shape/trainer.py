@@ -38,19 +38,20 @@ class Trainer():
 
         self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
         total_it = 0
-        # stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-        #           {'step1': 200, 'step2': 500, 'step3': 400},
-        #           {'step1': 200, 'step2': 500, 'step3': 400},
-        #           {'step1': 200, 'step2': 500, 'step3': 400}]
+        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+                  {'step1': 200, 'step2': 500, 'step3': 400},
+                  {'step1': 200, 'step2': 500, 'step3': 400},
+                  {'step1': 200, 'step2': 500, 'step3': 400}]
         # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        stages = [  {'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1},
+        #             {'step1': 1, 'step2': 1, 'step3': 1}]
         self.n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
-        # shuffle_ids = [0]
+        shuffle_ids = [0]
         # Sequential training of the D,A,L,V nets
 
         #-----------------Main loop through all images--------------------------
@@ -61,7 +62,7 @@ class Trainer():
             latent_batch = latents[i_batch].cuda()
 
             # Pretrain depth net on the prior shape
-            # self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+            self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
             #-----------------Loop through all stages---------------------------
             for stage in range(self.n_stages):
@@ -124,15 +125,15 @@ class Trainer():
                                    "loss_step3": loss,
                                    "image_num": i_batch})
 
-            if self.plot_intermediate:
-                if i_batch % 3 == 0:
-                    recon_im, recon_depth = self.model.evaluate_results(image_batch)
-                    recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-                    plot_reconstructions(recon_im, recon_depth,
-                            total_it=str(total_it), im_idx=str(i_batch), stage=str(stage))
-            
-            if self.save_ckpts:
-                self.model.save_checkpoint(total_it)
+                if self.plot_intermediate:
+                    if i_batch % 3 == 0:
+                        recon_im, recon_depth = self.model.evaluate_results(image_batch)
+                        recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+                        plot_reconstructions(recon_im, recon_depth,
+                                total_it=str(total_it), im_idx=str(i_batch), stage=str(stage))
+                
+                if self.save_ckpts:
+                    self.model.save_checkpoint(stage, total_it)
 
 
             # print(f'Loss: {running_loss}') # FIXME

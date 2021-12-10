@@ -280,6 +280,7 @@ class GAN2Shape(nn.Module):
 
         return loss_total, None
 
+    #FIXME: remove this from the class
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
             depth_raw = self.depth_net(data.cuda()).squeeze(1)
@@ -393,7 +394,7 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
     
-    def save_checkpoint(self, total_it, dataset='car'):
+    def save_checkpoint(self, stage, total_it, dataset='car'): #fixme add support for other datasets
         try:
             nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
             now = datetime.datetime.now()
@@ -406,12 +407,22 @@ class GAN2Shape(nn.Module):
                 filename = self.ckpt_paths['VLADE_nets'] + dataset
                 if not os.path.exists(filename):
                     os.makedirs(filename)
-                filename += '/' + net + '_' + str(total_it) + '_it_' + now + '.pth'
+                filename += '/' + net + '_stage_' + str(stage) + '_' + str(total_it) + '_it_' + now + '.pth'
+
                 with open(filename, 'wb') as f:
                     torch.save(save_dict, f)
         except Exception as e:
             print("Error: ", e)
             print(">>>Saving failed... continuing training<<<")
+        
+    def load_from_checkpoint(self, ckpt_paths):
+        nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
+        device = torch.device('cuda')
+        for net in nets:
+            filename = ckpt_paths[net]
+            with open(filename, 'rb') as f:
+                checkpoint = torch.load(f, map_location=device)
+            getattr(self,f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
 
 
 class ViewLightSampler():
