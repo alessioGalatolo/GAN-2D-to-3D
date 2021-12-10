@@ -5,7 +5,7 @@ gan_size: 512
 channel_multiplier: 2
 image_size: 128
 z_dim: 512
-category: cars
+category: car
 gan_ckpt_path: checkpoints/stylegan2/stylegan2-car-config-f.pt
 root_path: data/car
 learning_rate: 0.0001
