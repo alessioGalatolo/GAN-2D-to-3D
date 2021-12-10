@@ -152,18 +152,15 @@ class Trainer():
         prior = self.prior_shape(image, shape=self.prior_name)
 
         iterator = tqdm(range(self.n_epochs_prior))
-        for epoch in iterator:
+        for _ in iterator:
             inputs = image.cuda()
             loss, depth = self.model.depth_net_forward(inputs, prior)
             optim.zero_grad()
             loss.backward()
             optim.step()
 
-            if epoch % self.n_epochs_prior / 10 == 0:
-                with torch.no_grad():
-                    iterator.set_description("Epoch (prior): " + str(epoch+1)
-                                             + "/" + str(self.n_epochs_prior)
-                                             + ". Loss = " + str(loss.cpu()))
+            with torch.no_grad():
+                iterator.set_description(f"Depth net prior loss = {loss.cpu()}")
 
             if self.log_wandb:
                 wandb.log({"loss_prior": loss.cpu(),
