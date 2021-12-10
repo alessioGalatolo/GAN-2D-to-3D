@@ -183,8 +183,8 @@ class Trainer():
                       center_x-box_width: center_x+box_width] = 1
                 return prior.cuda()
             elif shape == "ellipsoid":
-                h, w = self.image_size, self.image_size
-                c_x, c_y = w / 2, h / 2
+                height, width = self.image_size, self.image_size
+                c_x, c_y = width / 2, height / 2
 
                 mask = self.image_mask(image)[0, 0] >= 0.7
                 max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
@@ -200,10 +200,10 @@ class Trainer():
                 near = 0.91
                 far = 1.02
 
-                ellipsoid = torch.Tensor(1, h, w).fill_(far)
-                i, j = torch.meshgrid(torch.linspace(0, w-1, w),
-                                      torch.linspace(0, h-1, h))
-                i = (i - h/2) / ratio + h/2
+                ellipsoid = torch.Tensor(1, height, width).fill_(far)
+                i, j = torch.meshgrid(torch.linspace(0, width-1, width),
+                                      torch.linspace(0, height-1, height))
+                i = (i - height/2) / ratio + height/2
                 temp = math.sqrt(radius**2 - (radius - (far - near))**2)
                 dist = torch.sqrt((i - c_y)**2 + (j - c_x)**2)
                 area = dist <= r_pixel

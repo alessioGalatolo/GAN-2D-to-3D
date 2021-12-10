@@ -31,7 +31,7 @@ def main():
                         help='Debug the model')
     parser.add_argument('--log-file',
                         dest='LOG_FILE',
-                        default='gan2shape.log',
+                        default=None,
                         help='name of the logging file')
     args = parser.parse_args()
 

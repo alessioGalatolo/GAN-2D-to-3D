@@ -178,7 +178,7 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step2(self, images, latents, collected):
-        F1_d = 2  # FIXME
+        F1_d = 2  # number of mapping network layers used to regularize the latent offset
         logging.info('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
@@ -206,7 +206,7 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h)
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, f1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,
                                                         self.truncation,
@@ -277,8 +277,7 @@ class GAN2Shape(nn.Module):
 
         return loss_total, None
 
-    def latent_projection(self, image, gan_im, latent, center_w, center_h):
-        F1_d = 2  # FIXME: don't know what this is for
+    def latent_projection(self, image, gan_im, latent, center_w, center_h, F1_d):
         offset = self.offset_encoder_net(image)
         if self.relative_encoding:
             offset = offset - self.offset_encoder_net(gan_im)
