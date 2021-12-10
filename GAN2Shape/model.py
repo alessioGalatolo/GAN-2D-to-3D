@@ -2,16 +2,13 @@ import math
 import numpy as np
 import datetime
 import os
-
 from matplotlib import cm
 import matplotlib.pyplot as plt
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.utils import data
-
 from gan2shape import utils
 from gan2shape import networks
 from gan2shape.renderer import Renderer
@@ -102,7 +99,7 @@ class GAN2Shape(nn.Module):
     def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs).squeeze(1)
         depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size)
-        return F.mse_loss(depth[0], prior.detach())
+        return F.mse_loss(depth, prior.detach())
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
