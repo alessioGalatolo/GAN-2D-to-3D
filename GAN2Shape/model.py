@@ -52,7 +52,7 @@ class GAN2Shape(nn.Module):
         self.mask_net.eval()
 
         # Misc
-        self.n_proj_samples = config.get('n_proj_samples', 1)
+        self.n_proj_samples = config.get('n_proj_samples', 8)
         self.max_depth = 1.1
         self.min_depth = 0.9
         # self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
@@ -65,7 +65,6 @@ class GAN2Shape(nn.Module):
         self.z_translation_range = config.get('z_translation_range', 0.1)
         self.use_mask = config.get('use_mask', True)
         self.relative_encoding = config.get('relative_encoding', False)
-        self.transformer = config.get('transformer')
         self.rand_light = config.get('rand_light', [-1, 1, -0.2, 0.8, -0.1, 0.6, -0.6])
         self.truncation = config.get('truncation', 1)
         if self.truncation < 1:
@@ -179,7 +178,6 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step2(self, images, latents, collected):
-        num_proj_samples = self.n_proj_samples
         F1_d = 2  # FIXME
         if self.debug:
             print('Doing step 2')
@@ -191,7 +189,8 @@ class GAN2Shape(nn.Module):
         normal, light_a, light_b, albedo, depth = tensors
 
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(num_proj_samples, normal,
+            pseudo_im, mask = self.sample_pseudo_imgs(self.n_proj_samples,
+                                                      normal,
                                                       light_a, light_b,
                                                       albedo, depth,
                                                       canon_mask)
@@ -232,22 +231,22 @@ class GAN2Shape(nn.Module):
             print('Doing step 3')
 
         # --------- Extract Albedo and Depth from the original image ----------
-        projected_sample, mask = collected
+        projected_samples, masks = collected
         _, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
         # --------- Extract View and Light from the projected sample ----------
-        b = 1
+        b = self.n_proj_samples
 
         # View
-        view = self.viewpoint_net(projected_sample)  # V(i)
+        view = self.viewpoint_net(projected_samples)  # V(i)
         # Add mean
-        view = view + self.view_mean.unsqueeze(0)
+        view = view + self.view_mean.unsqueeze(0)  # TODO: maybe use VLSampler instead
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
-        light = self.lighting_net(projected_sample)   # L(i)
+        light = self.lighting_net(projected_samples)   # L(i)
         # Add mean
         light = light + self.light_mean.unsqueeze(0)
 
@@ -257,20 +256,23 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
 
+        depth = depth.expand(self.n_proj_samples,
+                             self.image_size,
+                             self.image_size)
         recon_depth = self.renderer.warp_canon_depth(depth)
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
         margin = (self.max_depth - self.min_depth) / 2
 
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
-        recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
+        recon_im_mask = recon_im_mask.unsqueeze(1).detach() * masks
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear')\
             .clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], projected_sample, mask=recon_im_mask[:b])
+        loss_l1_im = self.photo_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
         loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
-                                        projected_sample * recon_im_mask[:b])
+                                        projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth

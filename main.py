@@ -9,19 +9,20 @@ from gan2shape.dataset import ImageDataset, LatentDataset
 from plotting import *
 import wandb
 
+
 def main():
     parser = argparse.ArgumentParser(description='Run a GAN 2D to 3D shape')
     parser.add_argument('--config-file',
                         dest='CONFIG',
                         default='config.yml',
                         help='path of the config yaml file')
-    parser.add_argument('--wandb', 
-                        dest='WANDB', 
-                        action='store_true', 
+    parser.add_argument('--wandb',
+                        dest='WANDB',
+                        action='store_true',
                         default=False)
-    parser.add_argument('--save_ckpts', 
+    parser.add_argument('--save_ckpts',
                         dest='SAVE_CKPTS',
-                        action='store_true', 
+                        action='store_true',
                         default=False,
                         help='Save model weights after each stage')
     args = parser.parse_args()
@@ -45,7 +46,6 @@ def main():
             ]
         )
 
-    config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration

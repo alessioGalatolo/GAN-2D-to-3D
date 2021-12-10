@@ -55,8 +55,9 @@ class Trainer():
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [{'step1': 1, 'step2': 1, 'step3': 1},
-        #           {'step1': 1, 'step2': 1, 'step3': 1}]
+        if self.debug:
+            stages = [{'step1': 1, 'step2': 1, 'step3': 1},
+                      {'step1': 1, 'step2': 1, 'step3': 1}]
         n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -109,23 +110,20 @@ class Trainer():
                 # -----------------------------Step 3--------------------------
                 print(f"Doing step 3, stage {stage + 1}/{n_stages}")
                 step_iterator = tqdm(range(stages[stage]['step3']))
-                current_collected = []
                 optim = self.optim_step3
                 for _ in step_iterator:
-                    current_collected = [None]*len(images)
+                    # FIXME: not sure they do the same loop for step 3
                     projected_samples, masks = old_collected[i_batch]
-                    shuffle_projected = [i for i in range(len(projected_samples))]
-                    shuffle(shuffle_projected)
-                    for i_proj in shuffle_projected:
-                        optim.zero_grad()
-                        collected = projected_samples[i_proj].unsqueeze(0).cuda(),\
-                            masks[i_proj].unsqueeze(0).cuda()
+                    permutation = torch.randperm(len(projected_samples))
+                    projected_samples[permutation]
+                    optim.zero_grad()
+                    collected = projected_samples.cuda(), masks.cuda()
 
-                        loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
-                        loss.backward()
-                        optim.step()
-                        step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
-                        total_it += 1
+                    loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
+                    loss.backward()
+                    optim.step()
+                    step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
+                    total_it += 1
 
                     if self.log_wandb:
                         wandb.log({"stage": stage,
