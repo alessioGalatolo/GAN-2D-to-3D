@@ -10,7 +10,7 @@ def plot_predicted_depth_map(depth, image_size, img_idx=0):
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     ax.plot_surface(X, Y, depth[0], cmap=cm.coolwarm,
                     linewidth=0, antialiased=False)
-    plt.show(block=False)
+    plt.show(block=True)
 
 
 def plot_originals(images, im_idx=0):
@@ -19,8 +19,6 @@ def plot_originals(images, im_idx=0):
 
     plt.imshow(image)
     plt.show(block=False)
-
-    return
 
 
 def plot_3d_depth(recon_depth, image_size):
@@ -33,7 +31,6 @@ def plot_3d_depth(recon_depth, image_size):
                     linewidth=0, antialiased=False)
     plt.show(block=False)
     plt.savefig("results/plots/recon_3d_depth.png")
-    return
 
 
 def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""):
@@ -55,4 +52,3 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
-    return

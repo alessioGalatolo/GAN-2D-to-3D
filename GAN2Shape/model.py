@@ -86,6 +86,7 @@ class GAN2Shape(nn.Module):
         self.light_mean = light_mvn['mean'].cuda()
 
         # Losses
+        # FIXME: standardize their use between steps
         self.photo_loss = PhotometricLoss()
         self.percep_loss = PerceptualLoss()
         self.smooth_loss = SmoothLoss()
@@ -97,7 +98,8 @@ class GAN2Shape(nn.Module):
 
     def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs).squeeze(1)
-        depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size)
+        depth = self.get_clamped_depth(depth_raw, self.image_size,
+                                       self.image_size, clamp_border=False)
         return F.mse_loss(depth, prior.detach()), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
@@ -335,14 +337,14 @@ class GAN2Shape(nn.Module):
             view[:, 5:] * self.z_translation_range], 1)
         return view_trans
 
-    def get_clamped_depth(self, depth_raw, h, w):
+    def get_clamped_depth(self, depth_raw, h, w, clamp_border=True):
         depth_centered = depth_raw - depth_raw.view(1, -1).mean(1).view(1, 1, 1)
         depth = torch.tanh(depth_centered)
         depth = self.rescale_depth(depth)
-        # TODO: add border clamping
-        depth_border = torch.zeros(1, h, w-4).cuda()
-        depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
-        depth = depth*(1-depth_border) + depth_border * self.border_depth
+        if clamp_border:
+            depth_border = torch.zeros(1, h, w-4).cuda()
+            depth_border = F.pad(depth_border, (2, 2), mode='constant', value=1.02)
+            depth = depth*(1-depth_border) + depth_border * self.border_depth
         return depth
 
     def get_lighting_directions(self, lighting):
