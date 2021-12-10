@@ -27,11 +27,11 @@ class Trainer():
         self.category = model_config.get('category')
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1000)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
+        self.prior_name = model_config.get('prior_name', "box")
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
-        self.prior_name = model_config.get('prior_name', "box")
 
     def fit(self, images, latents, plot_depth_map=False):
         # self.model.reinitialize_model()
@@ -55,15 +55,14 @@ class Trainer():
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40},
         #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        # stages = [  {'step1': 1, 'step2': 1, 'step3': 1},
-        #             {'step1': 1, 'step2': 1, 'step3': 1}]
-        self.n_stages = len(stages)
+        # stages = [{'step1': 1, 'step2': 1, 'step3': 1},
+        #           {'step1': 1, 'step2': 1, 'step3': 1}]
+        n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
-        shuffle_ids = [0]
         # Sequential training of the D,A,L,V nets
 
-        # -----------------Main loop through all images--------------------------
+        # -----------------Main loop through all images------------------------
         iterator = tqdm(shuffle_ids)
         for i_batch in shuffle_ids:
             print(f'Training on image {i_batch}/{len(shuffle_ids)}')
@@ -73,17 +72,17 @@ class Trainer():
             # Pretrain depth net on the prior shape
             self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
-            # -----------------Loop through all stages---------------------------
-            for stage in range(self.n_stages):
+            # -----------------Loop through all stages-------------------------
+            for stage in range(n_stages):
                 iterator.set_description("Stage: " + str(stage) + "/"
-                                         + str(self.n_stages) + ". Image: "
+                                         + str(n_stages) + ". Image: "
                                          + str(i_batch+1) + "/"
                                          + str(len(images)) + ".")
                 old_collected = [None]*len(images)
 
-                # -----------------------Step 1 and 2----------------------------
+                # -----------------------Step 1 and 2--------------------------
                 for step in [1, 2]:
-                    print(f"Doing step {step}, stage {stage + 1}/{self.n_stages}")
+                    print(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
                     current_collected = [None]*len(images)
                     optim = getattr(self, f'optim_step{step}')
@@ -107,8 +106,8 @@ class Trainer():
                                        "image_num": i_batch})
                     old_collected = current_collected
 
-                # -----------------------------Step 3----------------------------
-                print(f"Doing step 3, stage {stage + 1}/{self.n_stages}")
+                # -----------------------------Step 3--------------------------
+                print(f"Doing step 3, stage {stage + 1}/{n_stages}")
                 step_iterator = tqdm(range(stages[stage]['step3']))
                 current_collected = []
                 optim = self.optim_step3
@@ -144,7 +143,7 @@ class Trainer():
                                              stage=str(stage))
 
                 if self.save_ckpts:
-                    self.model.save_checkpoint(stage, total_it)
+                    self.model.save_checkpoint(stage, total_it, self.category)
         print('Finished Training')
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
@@ -234,6 +233,8 @@ class Trainer():
                 mask = torch.ones(out.size(), dtype=torch.bool)
 
             if not torch.any(mask):
+                if self.debug:
+                    print(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
         return utils.resize(mask.float(), [self.image_size, self.image_size])
 

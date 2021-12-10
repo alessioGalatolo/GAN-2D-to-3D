@@ -1,4 +1,5 @@
 import math
+from glob import glob
 import numpy as np
 import datetime
 import os
@@ -92,7 +93,6 @@ class GAN2Shape(nn.Module):
 
         self.ckpt_paths = config.get('our_nets_ckpts')
 
-
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
@@ -138,7 +138,7 @@ class GAN2Shape(nn.Module):
                 lighting = self.lighting_net(images)
         else:
             lighting = self.lighting_net(images)
-        #Add mean
+        # Add mean
         lighting = lighting + self.light_mean.unsqueeze(0)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
@@ -159,7 +159,7 @@ class GAN2Shape(nn.Module):
         recon_im_mask = recon_im_mask.unsqueeze(1).detach()
         recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
 
-        ## Only used at test time
+        # Only used at test time
         if eval:
             return recon_im, recon_depth
 
@@ -231,14 +231,13 @@ class GAN2Shape(nn.Module):
         if self.debug:
             print('Doing step 3')
 
-        #--------- Extract Albedo and Depth from the original image ----------------
+        # --------- Extract Albedo and Depth from the original image ----------
         projected_sample, mask = collected
         _, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
-        #--------- Extract View and Light from the projected sample ----------------
+        # --------- Extract View and Light from the projected sample ----------
         b = 1
-        _, h, w = projected_sample[0].shape #FIXME: unused
 
         # View
         view = self.viewpoint_net(projected_sample)  # V(i)
@@ -257,7 +256,7 @@ class GAN2Shape(nn.Module):
         # Shading
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
-        
+
         recon_depth = self.renderer.warp_canon_depth(depth)
         grid_2d_from_canon = self.renderer.get_inv_warped_2d_grid(recon_depth)
         margin = (self.max_depth - self.min_depth) / 2
@@ -265,7 +264,8 @@ class GAN2Shape(nn.Module):
         # invalid border pixels have been clamped at max_depth+margin
         recon_im_mask = (recon_depth < self.max_depth+margin).float()
         recon_im_mask = recon_im_mask.unsqueeze(1).detach() * mask
-        recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear').clamp(min=-1, max=1)
+        recon_im = F.grid_sample(texture, grid_2d_from_canon, mode='bilinear')\
+            .clamp(min=-1, max=1)
 
         # Loss
         loss_l1_im = self.photo_loss(recon_im[:b], projected_sample, mask=recon_im_mask[:b])
@@ -277,11 +277,13 @@ class GAN2Shape(nn.Module):
 
         return loss_total, None
 
-    #FIXME: remove this from the class
+    # FIXME: remove this from the class
     def plot_predicted_depth_map(self, data, img_idx=0):
         with torch.no_grad():
             depth_raw = self.depth_net(data.cuda()).squeeze(1)
-            depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size).cpu().numpy()
+            depth = self.get_clamped_depth(depth_raw,
+                                           self.image_size,
+                                           self.image_size).cpu().numpy()
             x = np.arange(0, self.image_size, 1)
             y = np.arange(0, self.image_size, 1)
             X, Y = np.meshgrid(x, y)
@@ -390,36 +392,49 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.depth_net)
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
-    
-    def save_checkpoint(self, stage, total_it, dataset='car'): #fixme add support for other datasets
+
+    def save_checkpoint(self, stage, total_it, category='car'):
         try:
             nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
             now = datetime.datetime.now()
-            now = now.strftime("%d_%m_%H_%M")
+            now = now.strftime("%Y_%m_%d_%H_%M")  # descending order for sorting
             for net in nets:
-                save_dict={ 'total_it': total_it,
-                            'dataset': dataset,
-                            'model_state_dict':getattr(self,f'{net}_net').state_dict()}
+                save_dict = {'total_it': total_it,
+                             'dataset': category,
+                             'model_state_dict': getattr(self, f'{net}_net').state_dict()}
 
-                filename = self.ckpt_paths['VLADE_nets'] + dataset
-                if not os.path.exists(filename):
-                    os.makedirs(filename)
-                filename += '/' + net + '_stage_' + str(stage) + '_' + str(total_it) + '_it_' + now + '.pth'
+                # full path
+                filename = self.build_checkpoint_path(self.ckpt_paths['VLADE_nets'],
+                                                      category, net, stage,
+                                                      total_it, now)
+                # path without filename
+                save_path = filename.rsplit('/', maxsplit=1)[0]
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
 
                 with open(filename, 'wb') as f:
                     torch.save(save_dict, f)
         except Exception as e:
             print("Error: ", e)
             print(">>>Saving failed... continuing training<<<")
-        
-    def load_from_checkpoint(self, ckpt_paths):
+
+    def load_from_checkpoint(self, path_base, category, stage='*', it='*', time='*'):
         nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
         device = torch.device('cuda')
         for net in nets:
-            filename = ckpt_paths[net]
+            filename = self.build_checkpoint_path(path_base, category, net,
+                                                  stage, it, time)
             with open(filename, 'rb') as f:
                 checkpoint = torch.load(f, map_location=device)
-            getattr(self,f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
+            getattr(self, f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
+
+    def build_checkpoint_path(self, base, category, net, stage='*', it='*', time='*'):
+        path = f'{base}/{category}/{net}_stage_{stage}_{it}_it_{time}.pth'
+        if stage == '*' or it == '*' or time == '*':
+            # look for checkpoints
+            possible_paths = glob(path)
+            path = possible_paths[-1]  # FIXME: last one should be latest
+        return path
 
 
 class ViewLightSampler():
