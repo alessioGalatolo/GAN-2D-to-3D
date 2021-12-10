@@ -2,7 +2,7 @@ import math
 import torch
 from tqdm import tqdm
 from random import shuffle
-from plotting import plot_reconstructions
+from plotting import plot_predicted_depth_map, plot_reconstructions
 import wandb
 import matplotlib.pyplot as plt
 from gan2shape import utils
@@ -153,15 +153,15 @@ class Trainer():
         iterator = tqdm(range(self.n_epochs_prior))
         for epoch in iterator:
             inputs = image.cuda()
-            loss = self.model.depth_net_forward(inputs, prior)
+            loss, depth = self.model.depth_net_forward(inputs, prior)
             optim.zero_grad()
             loss.backward()
             optim.step()
 
             if epoch % self.n_epochs_prior / 10 == 0:
                 with torch.no_grad():
-                    iterator.set_description("Epoch (prior): " + str(epoch+1) + "/"
-                                             + str(self.n_epochs_prior)
+                    iterator.set_description("Epoch (prior): " + str(epoch+1)
+                                             + "/" + str(self.n_epochs_prior)
                                              + ". Loss = " + str(loss.cpu()))
 
             if self.log_wandb:
@@ -169,7 +169,8 @@ class Trainer():
                            "image_num": i_batch})
 
         if plot_depth_map:
-            self.model.plot_predicted_depth_map(image)
+            depth = depth.detach().cpu().numpy()
+            plot_predicted_depth_map(depth, self.image_size)
         return train_loss
 
     def prior_shape(self, image, shape="box"):

@@ -98,7 +98,7 @@ class GAN2Shape(nn.Module):
     def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs).squeeze(1)
         depth = self.get_clamped_depth(depth_raw, self.image_size, self.image_size)
-        return F.mse_loss(depth, prior.detach())
+        return F.mse_loss(depth, prior.detach()), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
@@ -278,21 +278,6 @@ class GAN2Shape(nn.Module):
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         return loss_total, None
-
-    # FIXME: remove this from the class
-    def plot_predicted_depth_map(self, data, img_idx=0):
-        with torch.no_grad():
-            depth_raw = self.depth_net(data.cuda()).squeeze(1)
-            depth = self.get_clamped_depth(depth_raw,
-                                           self.image_size,
-                                           self.image_size).cpu().numpy()
-            x = np.arange(0, self.image_size, 1)
-            y = np.arange(0, self.image_size, 1)
-            X, Y = np.meshgrid(x, y)
-            fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-            ax.plot_surface(X, Y, depth[0], cmap=cm.coolwarm,
-                            linewidth=0, antialiased=False)
-            plt.show()
 
     def latent_projection(self, image, gan_im, latent, center_w, center_h):
         F1_d = 2  # FIXME: don't know what this is for
