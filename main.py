@@ -1,13 +1,12 @@
 import argparse
 import yaml
-from os import path
 from torchvision import transforms
 from torch import cuda
 from gan2shape.trainer import Trainer
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageDataset, LatentDataset
-from plotting import *
-import wandb
+from plotting import plot_originals
+import logging
 
 
 def main():
@@ -30,6 +29,10 @@ def main():
                         action='store_true',
                         default=False,
                         help='Debug the model')
+    parser.add_argument('--log-file',
+                        dest='LOG_FILE',
+                        default='gan2shape.log',
+                        help='name of the logging file')
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -41,7 +44,13 @@ def main():
         config = yaml.safe_load(config_file)
 
     if args.WANDB:
+        import wandb
         wandb.init(project=" gan-2d-to-3d", entity="dd2412-group42", config=config)
+
+    # setup logging
+    logging.basicConfig(filename=args.LOG_FILE,
+                        format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=logging.INFO)
 
     # load/transform data
     transform = transforms.Compose(

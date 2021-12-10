@@ -1,4 +1,5 @@
 import math
+import logging
 import torch
 from tqdm import tqdm
 from random import shuffle
@@ -66,7 +67,7 @@ class Trainer():
         # -----------------Main loop through all images------------------------
         iterator = tqdm(shuffle_ids)
         for i_batch in shuffle_ids:
-            print(f'Training on image {i_batch}/{len(shuffle_ids)}')
+            logging.info(f'Training on image {i_batch}/{len(shuffle_ids)}')
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
 
@@ -83,7 +84,7 @@ class Trainer():
 
                 # -----------------------Step 1 and 2--------------------------
                 for step in [1, 2]:
-                    print(f"Doing step {step}, stage {stage + 1}/{n_stages}")
+                    logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
                     current_collected = [None]*len(images)
                     optim = getattr(self, f'optim_step{step}')
@@ -108,7 +109,7 @@ class Trainer():
                     old_collected = current_collected
 
                 # -----------------------------Step 3--------------------------
-                print(f"Doing step 3, stage {stage + 1}/{n_stages}")
+                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
                 step_iterator = tqdm(range(stages[stage]['step3']))
                 optim = self.optim_step3
                 for _ in step_iterator:
@@ -142,12 +143,12 @@ class Trainer():
 
                 if self.save_ckpts:
                     self.model.save_checkpoint(stage, total_it, self.category)
-        print('Finished Training')
+        logging.info('Finished Training')
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
         train_loss = []
-        print("Pretraining depth net on prior shape")
+        logging.info("Pretraining depth net on prior shape")
         prior = self.prior_shape(image, shape=self.prior_name)
 
         iterator = tqdm(range(self.n_epochs_prior))
@@ -232,8 +233,7 @@ class Trainer():
                 mask = torch.ones(out.size(), dtype=torch.bool)
 
             if not torch.any(mask):
-                if self.debug:
-                    print(f'Did not find any {self.category} in image {image}')
+                logging.warning(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
         return utils.resize(mask.float(), [self.image_size, self.image_size])
 

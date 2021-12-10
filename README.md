@@ -2,9 +2,10 @@
 - ~~Add saving of models/checkpoints~~
 - Add support for batches:
   - Image batches (Right now we are training for 1 image at a time, inefficient)
-  - Fix support for 100 projected samples of the same image (and implement batches for these too)
+  - ~~Fix support for 100 projected samples of the same image (and implement batches for these too)~~
 - ~~Fix ellipsoid/mask_net~~
-- Add proper logging/make good looking graphs
+- ~~Add proper logging~~
+- Make good looking graphs
 - Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)
 - Add plots/anims for multiple viewpoints and light? 
   (I think we need to construct a function which samples from an "interpolation" between two viewpoints and not randomly)
