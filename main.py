@@ -7,6 +7,7 @@ from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageDataset, LatentDataset
 from plotting import plot_originals
 import logging
+import time
 
 
 def main():
@@ -60,6 +61,10 @@ def main():
             ]
         )
 
+    if not args.SAVE_CKPTS:
+        print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
+        time.sleep(0.5)
+
     images = ImageDataset(config.get('root_path'), transform=transform)
     latents = LatentDataset(config.get('root_path'))
     # set configuration
@@ -67,8 +72,9 @@ def main():
                       debug=args.DEBUG, plot_intermediate=True,
                       log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS)
 
+
     # plot_originals(images)
-    trainer.fit(images, latents, plot_depth_map=True)
+    trainer.fit(images, latents)
     return
 
 
