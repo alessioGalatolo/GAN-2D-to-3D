@@ -12,7 +12,7 @@ from torch.utils import data
 from gan2shape import utils
 from gan2shape import networks
 from gan2shape.renderer import Renderer
-from gan2shape.stylegan2 import Generator, Discriminator
+from gan2shape.stylegan3 import Generator, Discriminator
 from gan2shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
 
 
