@@ -1,4 +1,5 @@
 import math
+import logging
 import torch
 from tqdm import tqdm
 from random import shuffle
@@ -66,7 +67,7 @@ class Trainer():
         # -----------------Main loop through all images------------------------
         iterator = tqdm(shuffle_ids)
         for i_batch in shuffle_ids:
-            print(f'Training on image {i_batch}/{len(shuffle_ids)}')
+            logging.info(f'Training on image {i_batch}/{len(shuffle_ids)}')
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
 
@@ -83,7 +84,7 @@ class Trainer():
 
                 # -----------------------Step 1 and 2--------------------------
                 for step in [1, 2]:
-                    print(f"Doing step {step}, stage {stage + 1}/{n_stages}")
+                    logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
                     current_collected = [None]*len(images)
                     optim = getattr(self, f'optim_step{step}')
@@ -108,7 +109,7 @@ class Trainer():
                     old_collected = current_collected
 
                 # -----------------------------Step 3--------------------------
-                print(f"Doing step 3, stage {stage + 1}/{n_stages}")
+                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
                 step_iterator = tqdm(range(stages[stage]['step3']))
                 optim = self.optim_step3
                 for _ in step_iterator:
@@ -142,27 +143,24 @@ class Trainer():
 
                 if self.save_ckpts:
                     self.model.save_checkpoint(stage, total_it, self.category)
-        print('Finished Training')
+        logging.info('Finished Training')
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
         train_loss = []
-        print("Pretraining depth net on prior shape")
+        logging.info("Pretraining depth net on prior shape")
         prior = self.prior_shape(image, shape=self.prior_name)
 
         iterator = tqdm(range(self.n_epochs_prior))
-        for epoch in iterator:
+        for _ in iterator:
             inputs = image.cuda()
             loss, depth = self.model.depth_net_forward(inputs, prior)
             optim.zero_grad()
             loss.backward()
             optim.step()
 
-            if epoch % self.n_epochs_prior / 10 == 0:
-                with torch.no_grad():
-                    iterator.set_description("Epoch (prior): " + str(epoch+1)
-                                             + "/" + str(self.n_epochs_prior)
-                                             + ". Loss = " + str(loss.cpu()))
+            with torch.no_grad():
+                iterator.set_description(f"Depth net prior loss = {loss.cpu()}")
 
             if self.log_wandb:
                 wandb.log({"loss_prior": loss.cpu(),
@@ -185,8 +183,8 @@ class Trainer():
                       center_x-box_width: center_x+box_width] = 1
                 return prior.cuda()
             elif shape == "ellipsoid":
-                h, w = self.image_size, self.image_size
-                c_x, c_y = w / 2, h / 2
+                height, width = self.image_size, self.image_size
+                c_x, c_y = width / 2, height / 2
 
                 mask = self.image_mask(image)[0, 0] >= 0.7
                 max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
@@ -202,10 +200,10 @@ class Trainer():
                 near = 0.91
                 far = 1.02
 
-                ellipsoid = torch.Tensor(1, h, w).fill_(far)
-                i, j = torch.meshgrid(torch.linspace(0, w-1, w),
-                                      torch.linspace(0, h-1, h))
-                i = (i - h/2) / ratio + h/2
+                ellipsoid = torch.Tensor(1, height, width).fill_(far)
+                i, j = torch.meshgrid(torch.linspace(0, width-1, width),
+                                      torch.linspace(0, height-1, height))
+                i = (i - height/2) / ratio + height/2
                 temp = math.sqrt(radius**2 - (radius - (far - near))**2)
                 dist = torch.sqrt((i - c_y)**2 + (j - c_x)**2)
                 area = dist <= r_pixel
@@ -232,8 +230,7 @@ class Trainer():
                 mask = torch.ones(out.size(), dtype=torch.bool)
 
             if not torch.any(mask):
-                if self.debug:
-                    print(f'Did not find any {self.category} in image {image}')
+                logging.warning(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
         return utils.resize(mask.float(), [self.image_size, self.image_size])
 

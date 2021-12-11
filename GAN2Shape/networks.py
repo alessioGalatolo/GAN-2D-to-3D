@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from gan2shape.resnet import resnet50, resnet101, resnet152
-from gan2shape.debug_grad_updates import *
+import gan2shape.debug_grad_updates as alerter
+
+
 """
 Network dependencies for the networks in arxiv/2011.00844.
 
@@ -52,7 +54,7 @@ class ViewpointNet(Encoder):
     def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=6, size=image_size)
         self.debug = debug
-        self.alert_func = Alert_View()
+        self.alert_func = alerter.AlertView()
 
     def forward(self, x):
         out = super().forward(input=x)
@@ -65,7 +67,8 @@ class LightingNet(Encoder):
     def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=4, size=image_size)
         self.debug = debug
-        self.alert_func = Alert_Light()
+        self.alert_func = alerter.AlertLight()
+
     def forward(self, x):
         out = super().forward(input=x)
         if self.debug:
@@ -142,7 +145,8 @@ class DepthNet(EncoderDecoder):
     def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=1, size=image_size, activation=None)
         self.debug = debug
-        self.alert_func = Alert_Depth()
+        self.alert_func = alerter.AlertDepth()
+
     def forward(self, x):
         out = super().forward(input=x)
         if self.debug:
@@ -154,7 +158,7 @@ class AlbedoNet(EncoderDecoder):
     def __init__(self, image_size, debug=False):
         super().__init__(cin=3, cout=3, size=image_size, activation=nn.Tanh)
         self.debug = debug
-        self.alert_func = Alert_Albedo()
+        self.alert_func = alerter.AlertAlbedo()
 
     def forward(self, x):
         out = super().forward(input=x)
@@ -202,10 +206,11 @@ class OffsetEncoder(nn.Module):
         assert(image_size in allowed_sizes)
         nf = 16  # should this be an input param?
         self.debug = debug
-        self.alert_func = Alert_OffsetEncoder()
+        self.alert_func = alerter.AlertOffsetEncoder()
 
         network_part1 = [
-            nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1),  # the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
+            # the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
+            nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             ResBlock(2*nf, 4*nf),
             ResBlock(4*nf, 8*nf),

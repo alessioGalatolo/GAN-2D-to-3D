@@ -1,10 +1,9 @@
 import math
 from glob import glob
+import logging
 import numpy as np
 import datetime
 import os
-from matplotlib import cm
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -105,8 +104,7 @@ class GAN2Shape(nn.Module):
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
         h, w = self.image_size, self.image_size
-        if self.debug:
-            print('Doing step 1')
+        logging.info('Doing step 1')
 
         # Depth
         # TODO: add flips?
@@ -180,9 +178,8 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step2(self, images, latents, collected):
-        F1_d = 2  # FIXME
-        if self.debug:
-            print('Doing step 2')
+        F1_d = 2  # number of mapping network layers used to regularize the latent offset
+        logging.info('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
         *tensors, canon_mask = collected
@@ -209,7 +206,7 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h)
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, f1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,
                                                         self.truncation,
@@ -229,8 +226,7 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
-        if self.debug:
-            print('Doing step 3')
+        logging.info('Doing step 3')
 
         # --------- Extract Albedo and Depth from the original image ----------
         projected_samples, masks = collected
@@ -281,8 +277,7 @@ class GAN2Shape(nn.Module):
 
         return loss_total, None
 
-    def latent_projection(self, image, gan_im, latent, center_w, center_h):
-        F1_d = 2  # FIXME: don't know what this is for
+    def latent_projection(self, image, gan_im, latent, center_w, center_h, F1_d):
         offset = self.offset_encoder_net(image)
         if self.relative_encoding:
             offset = offset - self.offset_encoder_net(gan_im)
@@ -371,11 +366,11 @@ class GAN2Shape(nn.Module):
         for layers in net.children():
             for layer in layers:
                 if hasattr(layer, 'reset_parameters'):
-                    # print("Resetting layer")
+                    logging.info("Resetting layer")
                     layer.reset_parameters()
 
     def reinitialize_model(self):
-        print(">>>RESETTING ALL WEIGHTS<<<")
+        logging.warning(">>>RESETTING ALL WEIGHTS<<<")
         self.reset_params(self.lighting_net)
         self.reset_params(self.viewpoint_net)
         self.reset_params(self.depth_net)
@@ -404,8 +399,8 @@ class GAN2Shape(nn.Module):
                 with open(filename, 'wb') as f:
                     torch.save(save_dict, f)
         except Exception as e:
-            print("Error: ", e)
-            print(">>>Saving failed... continuing training<<<")
+            logging.error("Error: ", e)
+            logging.error(">>>Saving failed... continuing training<<<")
 
     def load_from_checkpoint(self, path_base, category, stage='*', it='*', time='*'):
         nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']

@@ -1,6 +1,8 @@
 from torch.autograd import Function
+import logging
 
-#This got repetitive because PyTorch requires the forward/backward to be static methods
+# This got repetitive because PyTorch requires the forward/backward to be static methods
+
 
 class AlertGradUpdate(Function):
     # def __init__(self, message):
@@ -11,36 +13,43 @@ class AlertGradUpdate(Function):
         # ctx is a context object that can be used to stash information
         # for backward computation
         return tensor
+
     @staticmethod
     def backward(ctx, grad_output):
         return grad_output, None
 
-class Alert_View(AlertGradUpdate):
+
+# FIXME: Is it possible to group them into one?
+class AlertView(AlertGradUpdate):
     @staticmethod
     def backward(ctx, grad_output):
-        print(">>>View grads updated<<<")
+        logging.info(">>>View grads updated<<<")
         return grad_output, None
 
-class Alert_Light(AlertGradUpdate):
+
+class AlertLight(AlertGradUpdate):
     @staticmethod
     def backward(ctx, grad_output):
-        print(">>>Light grads updated<<<")
+        logging.info(">>>Light grads updated<<<")
         return grad_output, None
 
-class Alert_Depth(AlertGradUpdate):
+
+class AlertDepth(AlertGradUpdate):
     @staticmethod
     def backward(ctx, grad_output):
-        print(">>>Depth grads updated<<<")
+        logging.info(">>>Depth grads updated<<<")
         return grad_output, None
 
-class Alert_Albedo(AlertGradUpdate):
+
+class AlertAlbedo(AlertGradUpdate):
     @staticmethod
     def backward(ctx, grad_output):
-        print(">>>Albedo grads updated<<<")
+        logging.info(">>>Albedo grads updated<<<")
         return grad_output, None
-        
-class Alert_OffsetEncoder(AlertGradUpdate):
+
+
+class AlertOffsetEncoder(AlertGradUpdate):
     @staticmethod
     def backward(ctx, grad_output):
-        print(">>>OffsetEncoder grads updated<<<")
+        logging.info(">>>OffsetEncoder grads updated<<<")
         return grad_output, None

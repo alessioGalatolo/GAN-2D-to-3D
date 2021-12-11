@@ -1,45 +1,5 @@
-import os
-import glob
-import yaml
-import random
-import numpy as np
-
 import torch
 import torch.nn.functional as F
-
-
-def xmkdir(path):
-    """Create directory PATH recursively if it does not exist."""
-    os.makedirs(path, exist_ok=True)
-
-
-def clean_checkpoint(checkpoint_dir, keep_num=2):
-    if keep_num > 0:
-        names = list(sorted(
-            glob.glob(os.path.join(checkpoint_dir, 'checkpoint*.pth'))
-        ))
-        if len(names) > keep_num:
-            for name in names[:-keep_num]:
-                print(f"Deleting obslete checkpoint file {name}")
-                os.remove(name)
-
-
-def compute_sc_inv_err(d_pred, d_gt, mask=None):
-    b = d_pred.size(0)
-    diff = d_pred - d_gt
-    if mask is not None:
-        diff = diff * mask
-        avg = diff.view(b, -1).sum(1) / (mask.view(b, -1).sum(1))
-        score = (diff - avg.view(b,1,1))**2 * mask
-    else:
-        avg = diff.view(b, -1).mean(1)
-        score = (diff - avg.view(b,1,1))**2
-    return score  # masked error maps
-
-
-def compute_angular_distance(n1, n2, mask=None):
-    dist = (n1*n2).sum(3).clamp(-1,1).acos() /np.pi*180
-    return dist*mask if mask is not None else dist
 
 
 def resize(image, size):
