@@ -206,7 +206,7 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, f1_d)
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, F1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,
                                                         self.truncation,
