@@ -225,7 +225,7 @@ class GAN2Shape(nn.Module):
                                                       albedo, depth,
                                                       canon_mask)
 
-            gan_im, _ = self.generator([latents], input_is_w=True,
+            gan_im, _ = self.generator(latents, input_is_w=True,
                                        truncation_latent=self.mean_latent,
                                        truncation=self.truncation, randomize_noise=False)
             gan_im = gan_im.clamp(min=-1, max=1)

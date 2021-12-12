@@ -24,7 +24,7 @@ from torch_utils.ops import fma
 
 @misc.profiled_function
 def normalize_2nd_moment(x, dim=1, eps=1e-8):
-    return x * (x.square().mean(dim=dim, keepdim=True) + eps).rsqrt()
+    return x * (x.pow(2).mean(dim=dim, keepdim=True) + eps).rsqrt()
 
 #----------------------------------------------------------------------------
 
@@ -120,8 +120,10 @@ class FullyConnectedLayer(torch.nn.Module):
         if self.activation == 'linear' and b is not None:
             x = torch.addmm(b.unsqueeze(0), x, w.t())
         else:
+            x = x.cpu()
             x = x.matmul(w.t())
             x = bias_act.bias_act(x, b, act=self.activation)
+            x = x.cuda()
         return x
 
     def extra_repr(self):
@@ -230,14 +232,13 @@ class MappingNetwork(torch.nn.Module):
     def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False):
         # Embed, normalize, and concat inputs.
         x = None
-        with torch.autograd.profiler.record_function('input'):
-            if self.z_dim > 0:
-                misc.assert_shape(z, [None, self.z_dim])
-                x = normalize_2nd_moment(z.to(torch.float32))
-            if self.c_dim > 0:
-                misc.assert_shape(c, [None, self.c_dim])
-                y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
-                x = torch.cat([x, y], dim=1) if x is not None else y
+        if self.z_dim > 0:
+            misc.assert_shape(z, [None, self.z_dim])
+            x = normalize_2nd_moment(z.to(torch.float32))
+        if self.c_dim > 0:
+            misc.assert_shape(c, [None, self.c_dim])
+            y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
+            x = torch.cat([x, y], dim=1) if x is not None else y
 
         # Main layers.
         for idx in range(self.num_layers):
@@ -251,17 +252,15 @@ class MappingNetwork(torch.nn.Module):
 
         # Broadcast.
         if self.num_ws is not None:
-            with torch.autograd.profiler.record_function('broadcast'):
-                x = x.unsqueeze(1).repeat([1, self.num_ws, 1])
+            x = x.unsqueeze(1).repeat([1, self.num_ws, 1])
 
         # Apply truncation.
         if truncation_psi != 1:
-            with torch.autograd.profiler.record_function('truncate'):
-                assert self.w_avg_beta is not None
-                if self.num_ws is None or truncation_cutoff is None:
-                    x = self.w_avg.lerp(x, truncation_psi)
-                else:
-                    x[:, :truncation_cutoff] = self.w_avg.lerp(x[:, :truncation_cutoff], truncation_psi)
+            assert self.w_avg_beta is not None
+            if self.num_ws is None or truncation_cutoff is None:
+                x = self.w_avg.lerp(x, truncation_psi)
+            else:
+                x[:, :truncation_cutoff] = self.w_avg.lerp(x[:, :truncation_cutoff], truncation_psi)
         return x
 
     def extra_repr(self):
@@ -540,8 +539,9 @@ class Generator(torch.nn.Module):
         self.num_ws = self.synthesis.num_ws
         self.mapping = MappingNetwork(z_dim=z_dim, c_dim=c_dim, w_dim=w_dim, num_ws=self.num_ws, **mapping_kwargs)
 
-    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False, **synthesis_kwargs):
-        ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff, update_emas=update_emas)
+    
+    def forward(self, z, c=None, truncation_latent=1, truncation=None, update_emas=False, input_is_w=False, randomize_noise=False, **synthesis_kwargs):
+        ws = self.mapping(z, c, truncation_psi=truncation_latent, truncation_cutoff=truncation, update_emas=update_emas)
         img = self.synthesis(ws, update_emas=update_emas, **synthesis_kwargs)
         return img
 
@@ -768,7 +768,7 @@ class Discriminator(torch.nn.Module):
             self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
         self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
-    def forward(self, img, c, update_emas=False, **block_kwargs):
+    def forward(self, img, c=0, update_emas=False, **block_kwargs):
         _ = update_emas # unused
         x = None
         for res in self.block_resolutions:

@@ -554,6 +554,7 @@ class Generator(nn.Module):
         randomize_noise=False,
         return_features=False,
     ):
+        styles = [styles]
         if not input_is_w:
             styles = [self.style_forward(s) for s in styles]
 
