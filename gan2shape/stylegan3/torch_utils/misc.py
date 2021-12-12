@@ -151,7 +151,10 @@ def copy_params_and_buffers(src_module, dst_module, require_all=False):
     for name, tensor in named_params_and_buffers(dst_module):
         assert (name in src_tensors) or (not require_all)
         if name in src_tensors:
-            tensor.copy_(src_tensors[name].detach()).requires_grad_(tensor.requires_grad)
+            with torch.no_grad():
+                src = src_tensors[name].detach()
+                tensor.copy_(src)
+                tensor.requires_grad_(tensor.requires_grad)
 
 #----------------------------------------------------------------------------
 # Context manager for easily enabling/disabling DistributedDataParallel

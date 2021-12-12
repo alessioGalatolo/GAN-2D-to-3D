@@ -183,8 +183,9 @@ class SynthesisInput(torch.nn.Module):
 
         # Draw random frequencies from uniform 2D disc.
         freqs = torch.randn([self.channels, 2])
-        radii = freqs.square().sum(dim=1, keepdim=True).sqrt()
-        freqs /= radii * radii.square().exp().pow(0.25)
+        radii = freqs.clone() ** 2
+        radii = radii.sum(dim=1, keepdim=True).sqrt()
+        freqs /= radii * (radii ** 2).exp().pow(0.25)
         freqs *= bandwidth
         phases = torch.rand([self.channels]) - 0.5
 

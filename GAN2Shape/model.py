@@ -24,7 +24,7 @@ class GAN2Shape(nn.Module):
         self.z_dim = config.get('z_dim')
         self.image_size = config.get('image_size')
         num_channels = config.get('num_channels', 3)  # number of color channels
-        label_dim = config.get('label_dim', 1)  # dimension of label
+        label_dim = config.get('label_dim', 0)  # dimension of label
         use_old_stylegan = config.get('stylegan_compatibility_mode', False)
         use_stylegan3 = config.get('stylegan3', False)
         if use_old_stylegan:
@@ -44,7 +44,8 @@ class GAN2Shape(nn.Module):
         else:
             from gan2shape.stylegan3 import Discriminator,\
                 load_network_pkl,\
-                copy_params_and_buffers
+                copy_params_and_buffers,\
+                open_url
             common_kwargs = {'c_dim': label_dim,
                              'img_resolution': self.image_size,
                              'img_channels': num_channels}
@@ -62,7 +63,7 @@ class GAN2Shape(nn.Module):
                                              w_dim=config.get('gan_size'),
                                              **common_kwargs)
             # load checkpoint
-            with open(config.get('gan_ckpt_path'), 'rb') as f:
+            with open_url(config.get('gan_ckpt_path')) as f:
                 resume_data = load_network_pkl(f)
             for name, module in [('G', self.generator), ('D', self.discriminator)]:
                 copy_params_and_buffers(resume_data[name], module, require_all=False)

@@ -426,7 +426,7 @@ def open_url(url: str, cache_dir: str = None, num_attempts: int = 10, verbose: b
 
     # Lookup from cache.
     if cache_dir is None:
-        cache_dir = make_cache_dir_path('downloads')
+        cache_dir = "checkpoints/stylegan3/"
 
     url_md5 = hashlib.md5(url.encode("utf-8")).hexdigest()
     if cache:
