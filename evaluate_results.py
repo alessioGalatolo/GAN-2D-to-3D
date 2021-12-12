@@ -4,7 +4,7 @@ from torchvision import transforms
 from torch import cuda
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageDataset, LatentDataset
-from plotting import plot_reconstructions, plot_3d_depth
+from plotting import plot_originals, plot_reconstructions, plot_3d_depth
 
 
 if __name__ == '__main__':
@@ -46,5 +46,6 @@ if __name__ == '__main__':
     model.load_from_checkpoint(base_path, category, stage, iteration, time)
     recon_im, recon_depth = model.evaluate_results(images[plot_index].cuda())
     recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-    plot_reconstructions(recon_im, recon_depth)
-    plot_3d_depth(recon_depth, config.get('image_size'))
+    plot_originals(images[plot_index], block=True)
+    plot_reconstructions(recon_im, recon_depth, block=True)
+    plot_3d_depth(recon_depth, config.get('image_size'), block=True)
