@@ -12,30 +12,60 @@ from torch.utils import data
 from gan2shape import utils
 from gan2shape import networks
 from gan2shape.renderer import Renderer
-from gan2shape.stylegan3 import Generator, Discriminator
 from gan2shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss, SmoothLoss
 
 
 class GAN2Shape(nn.Module):
     def __init__(self, config, debug=False):
         super().__init__()
-        self.z_dim = config.get('z_dim')
         self.debug = debug
-        # Networks
-        self.generator = Generator(config.get('gan_size'),
-                                   self.z_dim, 8,
-                                   channel_multiplier=config.get('channel_multiplier'))
-        self.discriminator = Discriminator(config.get('gan_size'),
-                                           channel_multiplier=config.get('channel_multiplier'))
-        gan_ckpt = torch.load(config.get('gan_ckpt_path'))
-        self.generator.load_state_dict(gan_ckpt['g_ema'], strict=False)
-        self.generator = self.generator.cuda()
-        self.generator.eval()
-        self.discriminator.load_state_dict(gan_ckpt['d'], strict=False)
-        self.discriminator = self.discriminator.cuda()
-        self.discriminator.eval()
 
+        # GAN Networks setup
+        self.z_dim = config.get('z_dim')
         self.image_size = config.get('image_size')
+        num_channels = config.get('num_channels', 3)  # number of color channels
+        label_dim = config.get('label_dim', 1)  # dimension of label
+        use_old_stylegan = config.get('stylegan_compatibility_mode', False)
+        use_stylegan3 = config.get('stylegan3', False)
+        if use_old_stylegan:
+            from gan2shape.stylegan2 import Generator, Discriminator
+            self.generator = Generator(config.get('gan_size'),
+                                       self.z_dim, 8,
+                                       channel_multiplier=config.get('channel_multiplier'))
+            self.discriminator = Discriminator(config.get('gan_size'),
+                                               channel_multiplier=config.get('channel_multiplier'))
+            gan_ckpt = torch.load(config.get('gan_ckpt_path'))
+            self.generator.load_state_dict(gan_ckpt['g_ema'], strict=False)
+            self.generator = self.generator.cuda()
+            self.generator.eval()
+            self.discriminator.load_state_dict(gan_ckpt['d'], strict=False)
+            self.discriminator = self.discriminator.cuda()
+            self.discriminator.eval()
+        else:
+            from gan2shape.stylegan3 import Discriminator,\
+                load_network_pkl,\
+                copy_params_and_buffers
+            common_kwargs = {'c_dim': label_dim,
+                             'img_resolution': self.image_size,
+                             'img_channels': num_channels}
+            self.discriminator = Discriminator(**common_kwargs)
+
+            # TODO: may be missing mapping args
+            if use_stylegan3:
+                from gan2shape.stylegan3 import GeneratorV3
+                self.generator = GeneratorV3(z_dim=self.z_dim,
+                                             w_dim=config.get('gan_size'),
+                                             **common_kwargs)
+            else:
+                from gan2shape.stylegan3 import GeneratorV2
+                self.generator = GeneratorV2(z_dim=self.z_dim,
+                                             w_dim=config.get('gan_size'),
+                                             **common_kwargs)
+            # load checkpoint
+            with open(config.get('gan_ckpt_path'), 'rb') as f:
+                resume_data = load_network_pkl(f)
+            for name, module in [('G', self.generator), ('D', self.discriminator)]:
+                copy_params_and_buffers(resume_data[name], module, require_all=False)
         self.collected = None
 
         self.lighting_net = networks.LightingNet(self.image_size, self.debug).cuda()

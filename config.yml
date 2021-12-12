@@ -13,6 +13,8 @@ view_scale: 1
 refinement_iterations: 1
 n_proj_samples: 2
 prior_name: ellipsoid
+stylegan_compatibility_mode: False  # use original implementation of stylegan2
+stylegan3: True  # use of stylegan2/stylegan3 (new implementation)
 
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
