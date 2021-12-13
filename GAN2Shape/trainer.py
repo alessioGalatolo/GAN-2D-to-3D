@@ -14,7 +14,7 @@ class Trainer():
                   'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
                   'horse', 'motorbike', 'person', 'pottedplant',
                   'sheep', 'sofa', 'train', 'tvmonitor']
-    CATEGORY2NUMBER = {category: i for i, category in enumerate(CATEGORIES)}
+    CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
 
     def __init__(self,
                  model,
@@ -219,6 +219,7 @@ class Trainer():
         with torch.no_grad():
             size = 473
             image = utils.resize(image, [size, size])
+            # FIXME: only if car, cat
             image = image / 2 + 0.5
             image[:, 0].sub_(0.485).div_(0.229)
             image[:, 1].sub_(0.456).div_(0.224)
@@ -233,7 +234,8 @@ class Trainer():
             if not torch.any(mask):
                 logging.warning(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
-        return utils.resize(mask.float(), [self.image_size, self.image_size])
+            mask = mask.float()
+        return utils.resize(mask, [self.image_size, self.image_size])
 
     @staticmethod
     def default_optimizer(model_list, lr=1e-4, betas=(0.9, 0.999), weight_decay=5e-4):

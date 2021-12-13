@@ -79,12 +79,6 @@ class GAN2Shape(nn.Module):
         view_scale = config.get('view_scale', 1)
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
-        # Losses
-        # FIXME: standardize their use between steps
-        self.photo_loss = PhotometricLoss()
-        self.percep_loss = PerceptualLoss()
-        self.smooth_loss = SmoothLoss()
-
         self.ckpt_paths = config.get('our_nets_ckpts')
 
     def rescale_depth(self, depth):
@@ -159,11 +153,11 @@ class GAN2Shape(nn.Module):
             return recon_im, recon_depth
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
-        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
+        loss_l1_im = PhotometricLoss()(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = PerceptualLoss()(recon_im[:b] * recon_im_mask[:b],
                                         images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
+        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         # FIXME include use_mask bool?
@@ -264,11 +258,11 @@ class GAN2Shape(nn.Module):
             .clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
-        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
+        loss_l1_im = PhotometricLoss()(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
+        loss_perc_im = PerceptualLoss()(recon_im[:b] * recon_im_mask[:b],
                                         projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
+        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         return loss_total, None
@@ -358,7 +352,7 @@ class GAN2Shape(nn.Module):
             recon_im, recon_depth = self.forward_step1(image, None, None, eval=True)
             depth_raw = self.depth_net(image).squeeze(1)
             recon_depth = self.get_clamped_depth(depth_raw, self.image_size,
-                                       self.image_size, clamp_border=False)
+                                                 self.image_size, clamp_border=False)
         return recon_im, recon_depth
 
     def reset_params(self, net):
