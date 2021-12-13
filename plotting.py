@@ -27,6 +27,7 @@ def plotly_3d_depth(recon_depth, texture=None):
     depth = recon_depth[0].numpy()
     if texture is not None:
         tex = texture[0,0].numpy()
+        # tex = np.flip(tex, axis=1)
         fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex)])
     else:
         fig = go.Figure(data=[go.Surface(z=-1*depth)])
@@ -35,6 +36,11 @@ def plotly_3d_depth(recon_depth, texture=None):
             xaxis=dict(showticklabels=False),
             yaxis=dict(showticklabels=False),
             zaxis=dict(showticklabels=False),
+            ),
+        scene_camera = dict(
+            up=dict(x=0.05, y=-1, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=0, y=0, z=2)
             )
     )
     fig.show()

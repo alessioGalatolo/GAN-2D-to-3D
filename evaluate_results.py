@@ -42,10 +42,10 @@ if __name__ == '__main__':
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
 
-    img_idx = 2
+    img_idx = 1
     model.load_from_checkpoint(base_path, category, stage, iteration, time)
     recon_im, recon_depth = model.evaluate_results(images[img_idx].cuda())
     recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-    # plot_originals(images[plot_index], block=True)
+    # plot_originals(images[img_idx], block=True)
     # plot_reconstructions(recon_im, recon_depth, block=True)
     plotly_3d_depth(recon_depth, recon_im)
