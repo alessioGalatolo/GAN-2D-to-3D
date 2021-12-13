@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
+import plotly.graph_objs as go
 plt.axis('equal')
 
 def plot_predicted_depth_map(depth, image_size, img_idx=0, block=False):
@@ -22,8 +23,25 @@ def plot_originals(image, block=False):
     plt.title('Original')
     plt.show(block=block)
 
+def plotly_3d_depth(recon_depth, texture=None):
+    depth = recon_depth[0].numpy()
+    if texture is not None:
+        tex = texture[0,0].numpy()
+        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex)])
+    else:
+        fig = go.Figure(data=[go.Surface(z=-1*depth)])
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(showticklabels=False),
+            yaxis=dict(showticklabels=False),
+            zaxis=dict(showticklabels=False),
+            )
+    )
+    fig.show()
 
-def plot_3d_depth(recon_depth, image_size, block=False):
+
+
+def plt_3d_depth(recon_depth, image_size, block=False):
     depth = recon_depth[0]
     x = np.arange(0, image_size, 1)
     y = np.arange(0, image_size, 1)

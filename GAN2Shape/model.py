@@ -360,6 +360,9 @@ class GAN2Shape(nn.Module):
     def evaluate_results(self, image):
         with torch.no_grad():
             recon_im, recon_depth = self.forward_step1(image, None, None, eval=True)
+            depth_raw = self.depth_net(image).squeeze(1)
+            recon_depth = self.get_clamped_depth(depth_raw, self.image_size,
+                                       self.image_size, clamp_border=False)
         return recon_im, recon_depth
 
     def reset_params(self, net):
