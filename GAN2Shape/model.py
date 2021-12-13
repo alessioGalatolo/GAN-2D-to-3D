@@ -44,10 +44,11 @@ class GAN2Shape(nn.Module):
         self.albedo_net = networks.AlbedoNet(self.image_size, self.debug).cuda()
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size, debug=self.debug).cuda()
 
-        self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
-        pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_ade20k.pth')
-        self.mask_net.load_state_dict(pspnet_checkpoint['state_dict'],
-                                      strict=False)
+        self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False)
+        temp = nn.DataParallel(self.mask_net)
+        checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
+        temp.load_state_dict(checkpoint['state_dict'], strict=False)
+        self.mask_net = temp.module.cuda()
         self.mask_net.eval()
 
         # Misc
