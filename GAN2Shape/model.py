@@ -95,7 +95,7 @@ class GAN2Shape(nn.Module):
         depth = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = depth.tanh()
         depth = self.rescale_depth(depth)
-        return F.mse_loss(depth, prior.detach()), depth
+        return F.mse_loss(depth[0], prior.detach()), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
