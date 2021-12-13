@@ -376,7 +376,7 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
 
-    def save_checkpoint(self, stage, total_it, category='car'):
+    def save_checkpoint(self, img_idx, stage, total_it, category='car'):
         try:
             nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
             now = datetime.datetime.now()
@@ -388,7 +388,7 @@ class GAN2Shape(nn.Module):
 
                 # full path
                 filename = self.build_checkpoint_path(self.ckpt_paths['VLADE_nets'],
-                                                      category, net, stage,
+                                                      category, net, img_idx, stage,
                                                       total_it, now)
                 # path without filename
                 save_path = filename.rsplit('/', maxsplit=1)[0]
@@ -411,8 +411,8 @@ class GAN2Shape(nn.Module):
                 checkpoint = torch.load(f, map_location=device)
             getattr(self, f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
 
-    def build_checkpoint_path(self, base, category, net, stage='*', it='*', time='*'):
-        path = f'{base}/{category}/{net}_stage_{stage}_{it}_it_{time}.pth'
+    def build_checkpoint_path(self, base, category, net, img_idx, stage='*', it='*', time='*'):
+        path = f'{base}/{category}/{net}_image_{img_idx}_stage_{stage}_{it}_it_{time}.pth'
         if stage == '*' or it == '*' or time == '*':
             # look for checkpoints
             possible_paths = glob(path)

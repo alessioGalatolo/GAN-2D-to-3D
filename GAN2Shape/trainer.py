@@ -71,8 +71,9 @@ class Trainer():
             image_batch = images[i_batch].cuda()
             latent_batch = latents[i_batch].cuda()
 
-            # Pretrain depth net on the prior shape
-            self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+            if not self.debug:
+                # Pretrain depth net on the prior shape
+                self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
 
             # -----------------Loop through all stages-------------------------
             for stage in range(n_stages):
@@ -141,8 +142,8 @@ class Trainer():
                                              im_idx=str(i_batch),
                                              stage=str(stage))
 
-                if self.save_ckpts:
-                    self.model.save_checkpoint(stage, total_it, self.category)
+            if self.save_ckpts:
+                self.model.save_checkpoint(i_batch, stage, total_it, self.category)
         logging.info('Finished Training')
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
