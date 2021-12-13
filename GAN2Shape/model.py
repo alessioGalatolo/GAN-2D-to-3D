@@ -79,11 +79,6 @@ class GAN2Shape(nn.Module):
         view_scale = config.get('view_scale', 1)
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
-        view_mvn = torch.load(view_mvn_path)
-        light_mvn = torch.load(light_mvn_path)
-        self.view_mean = view_mvn['mean'].cuda()
-        self.light_mean = light_mvn['mean'].cuda()
-
         # Losses
         # FIXME: standardize their use between steps
         self.photo_loss = PhotometricLoss()
@@ -122,7 +117,7 @@ class GAN2Shape(nn.Module):
         else:
             view = self.viewpoint_net(images)
         # Add mean
-        view = view + self.view_mean.unsqueeze(0)
+        view = view + self.view_light_sampler.view_mean.unsqueeze(0)
 
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
@@ -138,7 +133,7 @@ class GAN2Shape(nn.Module):
         else:
             lighting = self.lighting_net(images)
         # Add mean
-        lighting = lighting + self.light_mean.unsqueeze(0)
+        lighting = lighting + self.view_light_sampler.light_mean.unsqueeze(0)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
         # Shading
@@ -239,14 +234,14 @@ class GAN2Shape(nn.Module):
         # View
         view = self.viewpoint_net(projected_samples)  # V(i)
         # Add mean
-        view = view + self.view_mean.unsqueeze(0)  # TODO: maybe use VLSampler instead
+        view = view + self.view_light_sampler.view_mean.unsqueeze(0)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
         light = self.lighting_net(projected_samples)   # L(i)
         # Add mean
-        light = light + self.light_mean.unsqueeze(0)
+        light = light + self.view_light_sampler.light_mean.unsqueeze(0)
 
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
