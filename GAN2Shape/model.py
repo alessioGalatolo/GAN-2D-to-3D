@@ -92,8 +92,9 @@ class GAN2Shape(nn.Module):
 
     def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs).squeeze(1)
-        depth = self.get_clamped_depth(depth_raw, self.image_size,
-                                       self.image_size, clamp_border=False)
+        depth = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+        depth = depth.tanh()
+        depth = self.rescale_depth(depth)
         return F.mse_loss(depth, prior.detach()), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
