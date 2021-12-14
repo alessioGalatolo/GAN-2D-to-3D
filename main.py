@@ -34,6 +34,11 @@ def main():
                         dest='LOG_FILE',
                         default=None,
                         help='name of the logging file')
+    parser.add_argument('--load-pretrained',
+                        dest='LOAD_PRETRAINED',
+                        action='store_true',
+                        default=False,
+                        help='Load pretrained weights before training')
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -60,15 +65,15 @@ def main():
                 transforms.ToTensor()
             ]
         )
-    
-    load_dict = {
-        'category': config.get('category'),
-        'base_path': config.get('our_nets_ckpts')['VLADE_nets'],
-        'stage': config.get('stage', '*'),
-        'iteration': config.get('iteration', '*'),
-        'time':config.get('time', '*')
-    }
-    
+    if args.LOAD_PRETRAINED:
+        load_dict = {
+            'category': config.get('category'),
+            'base_path': config.get('our_nets_ckpts')['VLADE_nets'],
+            'stage': config.get('stage', '*'),
+            'iteration': config.get('iteration', '*'),
+            'time':config.get('time', '*')
+        }
+    else: load_dict = None
 
     if not args.SAVE_CKPTS:
         print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
