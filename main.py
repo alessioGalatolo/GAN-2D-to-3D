@@ -60,6 +60,15 @@ def main():
                 transforms.ToTensor()
             ]
         )
+    
+    load_dict = {
+        'category': config.get('category'),
+        'base_path': config.get('our_nets_ckpts')['VLADE_nets'],
+        'stage': config.get('stage', '*'),
+        'iteration': config.get('iteration', '*'),
+        'time':config.get('time', '*')
+    }
+    
 
     if not args.SAVE_CKPTS:
         print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
@@ -70,7 +79,8 @@ def main():
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config,
                       debug=args.DEBUG, plot_intermediate=True,
-                      log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS)
+                      log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS,
+                      load_dict=load_dict)
 
 
     # plot_originals(images)

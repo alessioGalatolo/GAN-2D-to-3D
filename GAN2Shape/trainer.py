@@ -22,7 +22,8 @@ class Trainer():
                  debug=False,
                  plot_intermediate=False,
                  log_wandb=False,
-                 save_ckpts=False):
+                 save_ckpts=False,
+                 load_dict=None):
         self.model = model(model_config, debug)
         self.image_size = model_config.get('image_size')
         self.category = model_config.get('category')
@@ -33,8 +34,17 @@ class Trainer():
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
+        self.load_dict = load_dict
 
     def fit(self, images, latents, plot_depth_map=False):
+        if self.load_dict is not None:
+            
+            self.model.load_from_checkpoint(self.load_dict['base_path'],
+                                            self.load_dict['category'],
+                                            self.load_dict['stage'],
+                                            self.load_dict['iteration'], 
+                                            self.load_dict['time'])
+
         # self.model.reinitialize_model()
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
