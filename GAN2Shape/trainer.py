@@ -38,8 +38,12 @@ class Trainer():
 
     def fit(self, images, latents, plot_depth_map=False):
         if self.load_dict is not None:
-            category, base_path, stage, iteration, time = self.load_dict.values()
-            self.model.load_from_checkpoint(category, base_path, stage, iteration, time)
+            
+            self.model.load_from_checkpoint(self.load_dict['base_path'],
+                                            self.load_dict['category'],
+                                            self.load_dict['stage'],
+                                            self.load_dict['iteration'], 
+                                            self.load_dict['time'])
 
         # self.model.reinitialize_model()
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
