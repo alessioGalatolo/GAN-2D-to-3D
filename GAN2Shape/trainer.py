@@ -38,7 +38,6 @@ class Trainer():
 
     def fit(self, images, latents, plot_depth_map=False):
         if self.load_dict is not None:
-            
             self.model.load_from_checkpoint(self.load_dict['base_path'],
                                             self.load_dict['category'],
                                             self.load_dict['stage'],
