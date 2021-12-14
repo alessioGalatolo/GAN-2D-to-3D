@@ -82,6 +82,12 @@ class GAN2Shape(nn.Module):
 
         self.ckpt_paths = config.get('our_nets_ckpts')
 
+        # losses
+        self.smooth_loss = SmoothLoss()
+        self.perceptual_loss = PerceptualLoss()
+        self.discriminator_loss = DiscriminatorLoss()
+        self.photometric_loss = PhotometricLoss()
+
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
@@ -154,11 +160,11 @@ class GAN2Shape(nn.Module):
             return recon_im, recon_depth
 
         # Loss
-        loss_l1_im = PhotometricLoss()(recon_im[:b], images, mask=recon_im_mask[:b])
-        loss_perc_im = PerceptualLoss()(recon_im[:b] * recon_im_mask[:b],
+        loss_l1_im = self.photometric_loss(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
                                         images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
+        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         # FIXME include use_mask bool?
@@ -206,9 +212,9 @@ class GAN2Shape(nn.Module):
         # projected_image = utils.resize(projected_image, [origin_size, origin_size])
         # projected_image = utils.crop(projected_image, self.crop)
         projected_image = utils.resize(projected_image, [self.image_size, self.image_size])
-        self.loss_l1 = PhotometricLoss()(projected_image, pseudo_im, mask=mask)
+        self.loss_l1 = self.photometric_loss(projected_image, pseudo_im, mask=mask)
 
-        self.loss_rec = DiscriminatorLoss()(self.discriminator,
+        self.loss_rec = self.discriminator_loss(self.discriminator,
                                             projected_image,
                                             pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
@@ -259,11 +265,11 @@ class GAN2Shape(nn.Module):
             .clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = PhotometricLoss()(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
-        loss_perc_im = PerceptualLoss()(recon_im[:b] * recon_im_mask[:b],
+        loss_l1_im = self.photometric_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
                                         projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = SmoothLoss()(depth) + SmoothLoss()(diffuse_shading)
+        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
 
         return loss_total, None
