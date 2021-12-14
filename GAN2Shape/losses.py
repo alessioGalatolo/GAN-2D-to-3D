@@ -3,16 +3,13 @@ import torch
 import torch.nn as nn
 
 
-class PerceptualLoss(PL):
+class PerceptualLoss():
     _instance = None
-
-    def __init__(self) -> None:
-        super().__init__(model='net-lin', net='vgg',
-                         use_gpu=True, gpu_ids=[torch.device('cuda:0')])
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            cls._instance = PL(model='net-lin', net='vgg',
+                               use_gpu=True, gpu_ids=[torch.device('cuda:0')])
         return cls._instance
 
 
