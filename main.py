@@ -67,7 +67,7 @@ def main():
         'stage': config.get('stage', '*'),
         'iteration': config.get('iteration', '*'),
         'time':config.get('time', '*')
-    }    
+    }
     
 
     if not args.SAVE_CKPTS:
