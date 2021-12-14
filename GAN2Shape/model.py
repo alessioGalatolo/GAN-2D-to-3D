@@ -84,7 +84,9 @@ class GAN2Shape(nn.Module):
 
         # losses
         self.smooth_loss = SmoothLoss()
-        self.perceptual_loss = PerceptualLoss()
+        self.perceptual_loss = PerceptualLoss(model='net-lin', net='vgg',
+                                              use_gpu=True,
+                                              gpu_ids=[torch.device('cuda:0')])
         self.discriminator_loss = DiscriminatorLoss()
         self.photometric_loss = PhotometricLoss()
 
