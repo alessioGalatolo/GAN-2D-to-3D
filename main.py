@@ -65,15 +65,16 @@ def main():
                 transforms.ToTensor()
             ]
         )
+
+    load_dict = None
     if args.LOAD_PRETRAINED:
         load_dict = {
             'category': config.get('category'),
             'base_path': config.get('our_nets_ckpts')['VLADE_nets'],
             'stage': config.get('stage', '*'),
             'iteration': config.get('iteration', '*'),
-            'time':config.get('time', '*')
+            'time': config.get('time', '*')
         }
-    else: load_dict = None
 
     if not args.SAVE_CKPTS:
         print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
@@ -87,9 +88,17 @@ def main():
                       log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS,
                       load_dict=load_dict)
 
+    stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+              {'step1': 200, 'step2': 500, 'step3': 400},
+              {'step1': 200, 'step2': 500, 'step3': 400},
+              {'step1': 200, 'step2': 500, 'step3': 400}]
+    # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
+    #           {'step1': 20, 'step2': 50, 'step3': 40},
+    #           {'step1': 20, 'step2': 50, 'step3': 40},
+    #           {'step1': 20, 'step2': 50, 'step3': 40}]
 
     # plot_originals(images)
-    trainer.fit(images, latents)
+    trainer.fit(images, latents, stages=stages)
     return
 
 

@@ -34,17 +34,8 @@ class Trainer():
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
-        self.load_dict = load_dict
-
-    def fit(self, images, latents, plot_depth_map=False):
-        if self.load_dict is not None:
-            self.model.load_from_checkpoint(self.load_dict['base_path'],
-                                            self.load_dict['category'],
-                                            self.load_dict['stage'],
-                                            self.load_dict['iteration'], 
-                                            self.load_dict['time'])
-
-        # self.model.reinitialize_model()
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
         self.optim_step2 = Trainer.default_optimizer([self.model.offset_encoder_net],
@@ -55,19 +46,12 @@ class Trainer():
                                                       self.model.albedo_net],
                                                      lr=self.learning_rate)
 
-        self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
+    def fit(self, images, latents, plot_depth_map=False, load_dict=None,
+            stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2):
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
+
         total_it = 0
-        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400}]
-        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        if self.debug:
-            stages = [{'step1': 1, 'step2': 1, 'step3': 1},
-                      {'step1': 1, 'step2': 1, 'step3': 1}]
         n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
         shuffle_ids = [i for i in range(len(images))]
@@ -154,6 +138,13 @@ class Trainer():
             if self.save_ckpts:
                 self.model.save_checkpoint(i_batch, stage, total_it, self.category)
         logging.info('Finished Training')
+
+    def load_model_checkpoint(self, load_dict):
+        self.model.load_from_checkpoint(load_dict['base_path'],
+                                        load_dict['category'],
+                                        load_dict['stage'],
+                                        load_dict['iteration'],
+                                        load_dict['time'])
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
@@ -255,3 +246,11 @@ class Trainer():
             param_list += list(params)
         return torch.optim.Adam(param_list, lr=lr,
                                 betas=betas, weight_decay=weight_decay)
+
+
+class GenericTrainer(Trainer):
+    # exactly as the training class but the training loop
+    # is designed to favor generalization
+    def fit(self, images, latents, plot_depth_map=False, load_dict=None,
+            stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2):
+        ...
