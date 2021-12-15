@@ -44,13 +44,14 @@ class Trainer():
                                                       self.model.depth_net,
                                                       self.model.albedo_net],
                                                      lr=self.learning_rate)
-
+        
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             shuffle=False):
+        
         if load_dict is not None:
             self.load_model_checkpoint(load_dict)
-
+        
         total_it = 0
         n_stages = len(stages)
         dataloader = DataLoader(images_latents,
@@ -88,7 +89,7 @@ class Trainer():
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
                             (image, latent, collected)
-
+                        
                         current_collected[data_index] = collected
                         loss.backward()
                         optim.step()
@@ -100,7 +101,7 @@ class Trainer():
                                        f"loss_step{step}": loss,
                                        "image_num": data_index})
                     old_collected = current_collected
-
+                
                 # -----------------------------Step 3--------------------------
                 if self.debug:
                     logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
@@ -125,7 +126,7 @@ class Trainer():
                                    "total_it": total_it,
                                    "loss_step3": loss,
                                    "image_num": data_index})
-
+                    
                 if self.plot_intermediate:
                     if data_index % 3 == 0:
                         recon_im, recon_depth = self.model.evaluate_results(image)
@@ -248,7 +249,7 @@ class Trainer():
                                 betas=betas, weight_decay=weight_decay)
 
 
-class GenericTrainer(Trainer):
+class GeneralizingTrainer(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,

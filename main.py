@@ -2,7 +2,7 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from gan2shape.trainer import Trainer
+from gan2shape.trainer import Trainer, GeneralizingTrainer
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageLatentDataset
 from plotting import plot_originals
@@ -39,6 +39,11 @@ def main():
                         action='store_true',
                         default=False,
                         help='Load pretrained weights before training')
+    parser.add_argument('--generalize',
+                        dest='GENERALIZE',
+                        action='store_true',
+                        default=False,
+                        help='If to run training procedure that favors generalization')
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -81,12 +86,20 @@ def main():
         time.sleep(0.5)
 
     images_latents = ImageLatentDataset(config.get('root_path'), transform=transform)
-    # set configuration
-    trainer = Trainer(model=GAN2Shape, model_config=config,
-                      debug=args.DEBUG, plot_intermediate=True,
-                      log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS,
-                      load_dict=load_dict)
 
+    # set configuration
+    trainer_config = {
+        'model':GAN2Shape, 'model_config':config,
+        'debug':args.DEBUG, 'plot_intermediate':True,
+        'log_wandb':args.WANDB, 'save_ckpts':args.SAVE_CKPTS,
+        'load_dict':load_dict
+    }
+
+    if args.GENERALIZE:
+        trainer = GeneralizingTrainer(**trainer_config)
+    else:
+        trainer = Trainer(**trainer_config)
+    
     stages = [{'step1': 700, 'step2': 700, 'step3': 600},
               {'step1': 200, 'step2': 500, 'step3': 400},
               {'step1': 200, 'step2': 500, 'step3': 400},
