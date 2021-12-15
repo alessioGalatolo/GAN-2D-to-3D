@@ -251,7 +251,107 @@ class Trainer():
 class GenericTrainer(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
-    def fit(self, images, latents, plot_depth_map=False, load_dict=None,
+    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             batch_size=1, shuffle=False):
-        ...
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
+
+        total_it = 0
+        n_stages = len(stages)
+        dataloader = DataLoader(images_latents,
+                                batch_size=batch_size,
+                                shuffle=shuffle)
+        # Sequential training of the D,A,L,V nets
+
+        # -----------------Pretrain on all images------------------------
+        data_iterator = tqdm(dataloader)
+        for batch in data_iterator:
+            images, latents, data_indices = batch
+            # FIXME: current model doesn't support batches
+            images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+            if not self.debug:
+                # Pretrain depth net on the prior shape
+                self.pretrain_on_prior(images, data_indices, plot_depth_map)
+
+        # logging.info(f'Training on image {data_index}/{len(data_iterator)}')
+
+        # -----------------Loop through all stages-------------------------
+        for stage in range(n_stages):
+            old_collected = [None]*len(images_latents)
+
+            # -----------------------Step 1 and 2--------------------------
+            for step in [1, 2]:
+                if self.debug:
+                    logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
+                data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                              + f"Image: {data_indices+1}/{len(images_latents)}."
+                                              + f"Step: {step}.")
+                current_collected = [None]*len(images_latents)  # FIXME: double check collected
+                optim = getattr(self, f'optim_step{step}')
+                for _ in range(stages[stage][f'step{step}']):
+                    # -----------------Loop through all images-----------------
+                    for batch in data_iterator:
+                        images, latents, data_indices = batch
+                        # FIXME: current model doesn't support batches
+                        images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+
+                        optim.zero_grad()
+                        collected = old_collected[data_indices]
+
+                        loss, collected = getattr(self.model, f'forward_step{step}')\
+                            (images, latents, collected)
+
+                        current_collected[data_indices] = collected
+                        loss.backward()
+                        optim.step()
+                        total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage": stage,
+                                       "total_it": total_it,
+                                       f"loss_step{step}": loss,
+                                       "image_num": data_indices})
+                old_collected = current_collected
+
+            # -----------------------------Step 3--------------------------
+            if self.debug:
+                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
+            data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                          + f"Image: {data_indices+1}/{len(images_latents)}."
+                                          + f"Step: {step}.")
+            optim = self.optim_step3
+            for _ in range(stages[stage]['step3']):
+                for batch in data_iterator:
+                    images, latents, data_indices = batch
+                    # FIXME: current model doesn't support batches
+                    images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+                    projected_samples, masks = old_collected[data_indices]
+                    permutation = torch.randperm(len(projected_samples))
+                    projected_samples[permutation]
+                    optim.zero_grad()
+                    collected = projected_samples.cuda(), masks.cuda()
+
+                    loss, _ = self.model.forward_step3(images, latents, collected)
+                    loss.backward()
+                    optim.step()
+                    total_it += 1
+
+                    if self.log_wandb:
+                        wandb.log({"stage": stage,
+                                   "total_it": total_it,
+                                   "loss_step3": loss,
+                                   "image_num": data_indices})
+
+            if self.plot_intermediate:
+                if data_indices % 3 == 0:
+                    recon_im, recon_depth = self.model.evaluate_results(images)
+                    recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+                    plot_reconstructions(recon_im, recon_depth,
+                                         total_it=str(total_it),
+                                         im_idx=str(data_indices),
+                                         stage=str(stage))
+
+        if self.save_ckpts:
+            self.model.save_checkpoint(data_indices, stage, total_it, self.category)
+        logging.info('Finished Training')
