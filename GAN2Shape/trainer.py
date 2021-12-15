@@ -254,7 +254,7 @@ class GeneralizingTrainer(Trainer):
     # is designed to favor generalization
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
-            batch_size=1, shuffle=False):
+            batch_size=2, shuffle=False):
         if load_dict is not None:
             self.load_model_checkpoint(load_dict)
 
@@ -270,7 +270,7 @@ class GeneralizingTrainer(Trainer):
         for batch in data_iterator:
             images, latents, data_indices = batch
             # FIXME: current model doesn't support batches
-            images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+            images, latents, data_indices = images.cuda(), latents.cuda(), data_indices
             if not self.debug:
                 # Pretrain depth net on the prior shape
                 self.pretrain_on_prior(images, data_indices, plot_depth_map)
@@ -295,10 +295,11 @@ class GeneralizingTrainer(Trainer):
                     for batch in data_iterator:
                         images, latents, data_indices = batch
                         # FIXME: current model doesn't support batches
-                        images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+                        images, latents, data_indices = images.cuda(), latents.cuda(), data_indices
 
                         optim.zero_grad()
-                        collected = old_collected[data_indices]
+                        # collected = old_collected[data_indices]
+                        collected = None
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
                             (images, latents, collected)
@@ -326,7 +327,7 @@ class GeneralizingTrainer(Trainer):
                 for batch in data_iterator:
                     images, latents, data_indices = batch
                     # FIXME: current model doesn't support batches
-                    images, latents, data_indices = images[0].cuda(), latents[0].cuda(), data_indices[0]
+                    images, latents, data_indices = images.cuda(), latents.cuda(), data_indices
                     projected_samples, masks = old_collected[data_indices]
                     permutation = torch.randperm(len(projected_samples))
                     projected_samples[permutation]

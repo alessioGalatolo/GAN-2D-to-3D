@@ -104,10 +104,7 @@ def main():
               {'step1': 200, 'step2': 500, 'step3': 400},
               {'step1': 200, 'step2': 500, 'step3': 400},
               {'step1': 200, 'step2': 500, 'step3': 400}]
-    # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-    #           {'step1': 20, 'step2': 50, 'step3': 40},
-    #           {'step1': 20, 'step2': 50, 'step3': 40},
-    #           {'step1': 20, 'step2': 50, 'step3': 40}]
+    generalized_stages = [{'step1': 70, 'step2': 70, 'step3': 60}]
 
     # plot_originals(images)
     trainer.fit(images_latents, stages=stages)

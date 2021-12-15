@@ -177,7 +177,7 @@ class GAN2Shape(nn.Module):
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, images, latents, collected):
+    def forward_step2(self, images, latents, collected, n_proj_samples):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
         if self.debug:
             logging.info('Doing step 2')
@@ -189,7 +189,7 @@ class GAN2Shape(nn.Module):
         normal, light_a, light_b, albedo, depth = tensors
 
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(self.n_proj_samples,
+            pseudo_im, mask = self.sample_pseudo_imgs(n_proj_samples,
                                                       normal,
                                                       light_a, light_b,
                                                       albedo, depth,

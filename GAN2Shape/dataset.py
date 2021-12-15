@@ -21,7 +21,6 @@ class ImageDataset(Dataset):
             if self.transform is not None:
                 image = self.transform(image)
             # image = image[None, :]
-            image = image.unsqueeze(0)
             image = image * 2 - 1
             return image
 
@@ -43,8 +42,7 @@ class LatentDataset(Dataset):
             latent = torch.load(latent_path, map_location='cpu')
             if type(latent) is dict:
                 latent = latent['latent']
-            if latent.dim() == 1:
-                latent = latent.unsqueeze(0)
+            
             return latent
 
 
