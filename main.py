@@ -4,7 +4,7 @@ from torchvision import transforms
 from torch import cuda
 from gan2shape.trainer import Trainer
 from gan2shape.model import GAN2Shape
-from gan2shape.dataset import ImageDataset, LatentDataset
+from gan2shape.dataset import ImageLatentDataset
 from plotting import plot_originals
 import logging
 import time
@@ -80,8 +80,7 @@ def main():
         print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
         time.sleep(0.5)
 
-    images = ImageDataset(config.get('root_path'), transform=transform)
-    latents = LatentDataset(config.get('root_path'))
+    images_latents = ImageLatentDataset(config.get('root_path'), transform=transform)
     # set configuration
     trainer = Trainer(model=GAN2Shape, model_config=config,
                       debug=args.DEBUG, plot_intermediate=True,
@@ -98,7 +97,7 @@ def main():
     #           {'step1': 20, 'step2': 50, 'step3': 40}]
 
     # plot_originals(images)
-    trainer.fit(images, latents, stages=stages)
+    trainer.fit(images_latents, stages=stages)
     return
 
 

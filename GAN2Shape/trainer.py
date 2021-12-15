@@ -46,7 +46,7 @@ class Trainer():
                                                       self.model.albedo_net],
                                                      lr=self.learning_rate)
 
-    def fit(self, images, latents, plot_depth_map=False, load_dict=None,
+    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2):
         if load_dict is not None:
             self.load_model_checkpoint(load_dict)
@@ -54,40 +54,40 @@ class Trainer():
         total_it = 0
         n_stages = len(stages)
         # array to keep the same shuffling among images, latents, etc.
-        shuffle_ids = [i for i in range(len(images))]
+        shuffle_ids = [i for i in range(len(images_latents))]
         # Sequential training of the D,A,L,V nets
 
         # -----------------Main loop through all images------------------------
         iterator = tqdm(shuffle_ids)
         for i_batch in shuffle_ids:
             logging.info(f'Training on image {i_batch}/{len(shuffle_ids)}')
-            image_batch = images[i_batch].cuda()
-            latent_batch = latents[i_batch].cuda()
+            image, latent = images_latents[i_batch]
+            image, latent = image.cuda(), latent.cuda()
 
             if not self.debug:
                 # Pretrain depth net on the prior shape
-                self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+                self.pretrain_on_prior(image, i_batch, plot_depth_map)
 
             # -----------------Loop through all stages-------------------------
             for stage in range(n_stages):
                 iterator.set_description("Stage: " + str(stage) + "/"
                                          + str(n_stages) + ". Image: "
                                          + str(i_batch+1) + "/"
-                                         + str(len(images)) + ".")
-                old_collected = [None]*len(images)
+                                         + str(len(images_latents)) + ".")
+                old_collected = [None]*len(images_latents)
 
                 # -----------------------Step 1 and 2--------------------------
                 for step in [1, 2]:
                     logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     step_iterator = tqdm(range(stages[stage][f'step{step}']))
-                    current_collected = [None]*len(images)
+                    current_collected = [None]*len(images_latents)
                     optim = getattr(self, f'optim_step{step}')
                     for _ in step_iterator:
                         optim.zero_grad()
                         collected = old_collected[i_batch]
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
-                            (image_batch, latent_batch, collected)
+                            (image, latent, collected)
 
                         current_collected[i_batch] = collected
                         loss.backward()
@@ -114,7 +114,7 @@ class Trainer():
                     optim.zero_grad()
                     collected = projected_samples.cuda(), masks.cuda()
 
-                    loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
+                    loss, _ = self.model.forward_step3(image, latent, collected)
                     loss.backward()
                     optim.step()
                     step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
@@ -128,7 +128,7 @@ class Trainer():
 
                 if self.plot_intermediate:
                     if i_batch % 3 == 0:
-                        recon_im, recon_depth = self.model.evaluate_results(image_batch)
+                        recon_im, recon_depth = self.model.evaluate_results(image)
                         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
                         plot_reconstructions(recon_im, recon_depth,
                                              total_it=str(total_it),
