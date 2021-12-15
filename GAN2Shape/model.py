@@ -103,7 +103,8 @@ class GAN2Shape(nn.Module):
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
         h, w = self.image_size, self.image_size
-        logging.info('Doing step 1')
+        if self.debug:
+            logging.info('Doing step 1')
 
         # Depth
         # TODO: add flips?
@@ -178,7 +179,8 @@ class GAN2Shape(nn.Module):
 
     def forward_step2(self, images, latents, collected):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
-        logging.info('Doing step 2')
+        if self.debug:
+            logging.info('Doing step 2')
         origin_size = images.size(0)
         # unpack collected
         *tensors, canon_mask = collected
@@ -225,7 +227,8 @@ class GAN2Shape(nn.Module):
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
-        logging.info('Doing step 3')
+        if self.debug:
+            logging.info('Doing step 3')
 
         # --------- Extract Albedo and Depth from the original image ----------
         projected_samples, masks = collected

@@ -59,4 +59,4 @@ class ImageLatentDataset(Dataset):
         return int(len(self.image_dataset))
 
     def __getitem__(self, index):
-        return self.image_dataset[index], self.latent_dataset[index]
+        return self.image_dataset[index], self.latent_dataset[index], index
