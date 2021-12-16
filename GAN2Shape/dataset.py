@@ -42,7 +42,6 @@ class LatentDataset(Dataset):
             latent = torch.load(latent_path, map_location='cpu')
             if type(latent) is dict:
                 latent = latent['latent']
-            
             return latent
 
 

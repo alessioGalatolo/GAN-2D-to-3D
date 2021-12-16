@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
-from torch.utils import data
 from gan2shape import utils
 from gan2shape import networks
 from gan2shape.renderer import Renderer
@@ -52,7 +51,6 @@ class GAN2Shape(nn.Module):
         self.mask_net.eval()
 
         # Misc
-        self.n_proj_samples = config.get('n_proj_samples', 8)
         self.max_depth = 1.1
         self.min_depth = 0.9
         # self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
@@ -165,7 +163,7 @@ class GAN2Shape(nn.Module):
         # Loss
         loss_l1_im = self.photometric_loss(recon_im[:b], images, mask=recon_im_mask[:b])
         loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
-                                        images * recon_im_mask[:b])
+                                            images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
@@ -173,11 +171,11 @@ class GAN2Shape(nn.Module):
         # FIXME include use_mask bool?
         # if use_mask == false:
         # if use_mask is false set canon_mask to None
-        canon_mask = None
+        canon_mask = [None]*len(images)
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, images, latents, collected, n_proj_samples):
+    def forward_step2(self, images, latents, collected, n_proj_samples=8):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
         if self.debug:
             logging.info('Doing step 2')
@@ -207,7 +205,8 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, F1_d)
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latents,
+                                                   center_w, center_h, F1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,
                                                         self.truncation,
@@ -219,8 +218,8 @@ class GAN2Shape(nn.Module):
         self.loss_l1 = self.photometric_loss(projected_image, pseudo_im, mask=mask)
 
         self.loss_rec = self.discriminator_loss(self.discriminator,
-                                            projected_image,
-                                            pseudo_im, mask=mask)
+                                                projected_image,
+                                                pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
         collected = projected_image.detach().cpu(), mask.detach().cpu()
@@ -236,7 +235,7 @@ class GAN2Shape(nn.Module):
         normal, _, _, albedo, depth, _ = collected
 
         # --------- Extract View and Light from the projected sample ----------
-        b = self.n_proj_samples
+        b = len(projected_samples)
 
         # View
         view = self.viewpoint_net(projected_samples)  # V(i)
@@ -256,7 +255,7 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
 
-        depth = depth.expand(self.n_proj_samples,
+        depth = depth.expand(b,
                              self.image_size,
                              self.image_size)
         recon_depth = self.renderer.warp_canon_depth(depth)
@@ -272,7 +271,7 @@ class GAN2Shape(nn.Module):
         # Loss
         loss_l1_im = self.photometric_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
         loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
-                                        projected_samples * recon_im_mask[:b])
+                                            projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth

@@ -56,7 +56,9 @@ def main():
 
     if args.WANDB:
         import wandb
-        wandb.init(project=" gan-2d-to-3d", entity="dd2412-group42", config=config)
+        wandb.init(project=" gan-2d-to-3d",
+                   entity="dd2412-group42",
+                   config=config)
 
     # setup logging
     logging.basicConfig(filename=args.LOG_FILE,
@@ -82,24 +84,26 @@ def main():
         }
 
     if not args.SAVE_CKPTS:
-        print(">>> Warning, not saving checkpoints. \n If this is a real run you want to rerun with --save-ckpts <<<")
+        print(">>> Warning, not saving checkpoints.")
+        print("If this is a real run you want to rerun with --save-ckpts <<<")
         time.sleep(0.5)
 
-    images_latents = ImageLatentDataset(config.get('root_path'), transform=transform)
+    images_latents = ImageLatentDataset(config.get('root_path'),
+                                        transform=transform)
 
     # set configuration
     trainer_config = {
-        'model':GAN2Shape, 'model_config':config,
-        'debug':args.DEBUG, 'plot_intermediate':True,
-        'log_wandb':args.WANDB, 'save_ckpts':args.SAVE_CKPTS,
-        'load_dict':load_dict
+        'model': GAN2Shape, 'model_config': config,
+        'debug': args.DEBUG, 'plot_intermediate': True,
+        'log_wandb': args.WANDB, 'save_ckpts': args.SAVE_CKPTS,
+        'load_dict': load_dict
     }
 
     if args.GENERALIZE:
         trainer = GeneralizingTrainer(**trainer_config)
     else:
         trainer = Trainer(**trainer_config)
-    
+
     stages = [{'step1': 700, 'step2': 700, 'step3': 600},
               {'step1': 200, 'step2': 500, 'step3': 400},
               {'step1': 200, 'step2': 500, 'step3': 400},
