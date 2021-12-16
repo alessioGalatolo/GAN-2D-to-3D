@@ -171,15 +171,18 @@ class GAN2Shape(nn.Module):
         # FIXME include use_mask bool?
         # if use_mask == false:
         # if use_mask is false set canon_mask to None
-        canon_mask = [None]*len(images)
+        if len(images) == 1:
+            canon_mask = None
+        else:
+            canon_mask = [None]*len(images)
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, images, latents, collected, n_proj_samples=8):
+    def forward_step2(self, image, latent, collected, n_proj_samples=8):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
         if self.debug:
             logging.info('Doing step 2')
-        origin_size = images.size(0)
+        origin_size = image.size(0)
         # unpack collected
         *tensors, canon_mask = collected
         for t in tensors:
@@ -193,7 +196,7 @@ class GAN2Shape(nn.Module):
                                                       albedo, depth,
                                                       canon_mask)
 
-            gan_im, _ = self.generator([latents], input_is_w=True,
+            gan_im, _ = self.generator([latent], input_is_w=True,
                                        truncation_latent=self.mean_latent,
                                        truncation=self.truncation, randomize_noise=False)
             gan_im = gan_im.clamp(min=-1, max=1)
@@ -205,7 +208,7 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents,
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latent,
                                                    center_w, center_h, F1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,

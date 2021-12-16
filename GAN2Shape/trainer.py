@@ -297,11 +297,11 @@ class GeneralizingTrainer(Trainer):
 
                     normals, lights_a, lights_b, albedos, depths, canon_masks = collected
                     for collected_index, data_index in enumerate(data_indices):
-                        step1_collected[data_index] = (normals[collected_index],
-                                                       lights_a[collected_index],
-                                                       lights_b[collected_index],
-                                                       albedos[collected_index],
-                                                       depths[collected_index],
+                        step1_collected[data_index] = (normals[collected_index:collected_index+1],
+                                                       lights_a[collected_index:collected_index+1],
+                                                       lights_b[collected_index:collected_index+1],
+                                                       albedos[collected_index:collected_index+1],
+                                                       depths[collected_index:collected_index+1],
                                                        canon_masks[collected_index])
                     loss.backward()
                     optim.step()
@@ -324,13 +324,17 @@ class GeneralizingTrainer(Trainer):
                     # FIXME: current model doesn't support batches
                     images, latents = images.cuda(), latents.cuda()
 
-                    for image, latent, index in zip(images, latents, data_indices):
+                    for batch_index in range(len(images)):
+                        image = images[batch_index:batch_index+1]
+                        latent = latents[batch_index:batch_index+1]
+                        index = data_indices[batch_index]
+
                         self.optim_step2.zero_grad()
                         self.optim_step3.zero_grad()
                         collected = step1_collected[index]
 
                         # step 2
-                        loss_step2, collected = self.model.forward_step2(images, latents, collected)
+                        loss_step2, collected = self.model.forward_step2(image, latent, collected)
                         projected_samples, masks = collected
                         permutation = torch.randperm(len(projected_samples))
                         projected_samples[permutation]
