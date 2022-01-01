@@ -4,8 +4,11 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from plotting import plot_predicted_depth_map, plot_reconstructions
-import wandb
 from gan2shape import utils
+try:
+    import wandb
+except ImportError:
+    wandb = None
 
 
 class Trainer():
@@ -49,11 +52,14 @@ class Trainer():
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             shuffle=False):
 
+        # continue previously started training
         if load_dict is not None:
             self.load_model_checkpoint(load_dict)
 
         total_it = 0
         n_stages = len(stages)
+
+        # the original training is instance-based => batch size = 1
         dataloader = DataLoader(images_latents,
                                 batch_size=1,
                                 shuffle=shuffle)
@@ -72,6 +78,7 @@ class Trainer():
 
             # -----------------Loop through all stages-------------------------
             for stage in range(n_stages):
+                # store the results of previous step (i.e. pseudo imgs, etc.)
                 old_collected = [None]*len(images_latents)
 
                 # -----------------------Step 1 and 2--------------------------
@@ -288,7 +295,6 @@ class GeneralizingTrainer(Trainer):
                 # -----------------Loop through all images-----------------
                 for batch in data_iterator:
                     images, latents, data_indices = batch
-                    # FIXME: current model doesn't support batches
                     images, latents = images.cuda(), latents.cuda()
 
                     optim.zero_grad()
@@ -321,7 +327,6 @@ class GeneralizingTrainer(Trainer):
             for _ in range(stages[stage]['step2']):
                 for batch in data_iterator:
                     images, latents, data_indices = batch
-                    # FIXME: current model doesn't support batches
                     images, latents = images.cuda(), latents.cuda()
 
                     for batch_index in range(len(images)):

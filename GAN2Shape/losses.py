@@ -2,6 +2,7 @@ from gan2shape.stylegan2 import PerceptualLoss
 import torch
 import torch.nn as nn
 
+
 class DiscriminatorLoss():
     def __init__(self, ftr_num=4, data_parallel=False):
         self.data_parallel = data_parallel
@@ -33,10 +34,6 @@ class DiscriminatorLoss():
                 loss = loss.mean()
             losses += [loss]
         return sum(losses)
-
-    # FIXME: Is this needed?
-    def set_ftr_num(self, ftr_num):
-        self.ftr_num = ftr_num
 
 
 class PhotometricLoss():

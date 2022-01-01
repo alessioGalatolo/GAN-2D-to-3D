@@ -59,6 +59,7 @@ def main():
         wandb.init(project=" gan-2d-to-3d",
                    entity="dd2412-group42",
                    config=config)
+        config = wandb.config
 
     # setup logging
     logging.basicConfig(filename=args.LOG_FILE,

@@ -424,7 +424,7 @@ class GAN2Shape(nn.Module):
         if stage == '*' or it == '*' or time == '*':
             # look for checkpoints
             possible_paths = glob(path)
-            path = possible_paths[-1]  # FIXME: last one should be latest
+            path = possible_paths[-1]
         return path
 
 
