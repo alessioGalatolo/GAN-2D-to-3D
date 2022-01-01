@@ -81,8 +81,8 @@ class Trainer():
                 # store the results of previous step (i.e. pseudo imgs, etc.)
                 old_collected = [None]*len(images_latents)
 
-                # -----------------------Step 1 and 2--------------------------
-                for step in [1, 2]:
+                # -----------------------Step 1, 2 and 3-----------------------
+                for step in [1, 2, 3]:
                     if self.debug:
                         logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
@@ -108,31 +108,6 @@ class Trainer():
                                        f"loss_step{step}": loss,
                                        "image_num": data_index})
                     old_collected = current_collected
-
-                # -----------------------------Step 3--------------------------
-                if self.debug:
-                    logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
-                data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
-                                              + f"Image: {data_index+1}/{len(images_latents)}."
-                                              + f"Step: {step}.")
-                optim = self.optim_step3
-                for _ in range(stages[stage]['step3']):
-                    projected_samples, masks = old_collected[data_index]
-                    permutation = torch.randperm(len(projected_samples))
-                    projected_samples[permutation]
-                    optim.zero_grad()
-                    collected = projected_samples.cuda(), masks.cuda()
-
-                    loss, _ = self.model.forward_step3(image, latent, collected)
-                    loss.backward()
-                    optim.step()
-                    total_it += 1
-
-                    if self.log_wandb:
-                        wandb.log({"stage": stage,
-                                   "total_it": total_it,
-                                   "loss_step3": loss,
-                                   "image_num": data_index})
 
                 if self.plot_intermediate:
                     if data_index % 3 == 0:

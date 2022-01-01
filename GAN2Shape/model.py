@@ -234,6 +234,11 @@ class GAN2Shape(nn.Module):
 
         # --------- Extract Albedo and Depth from the original image ----------
         projected_samples, masks = collected
+        permutation = torch.randperm(len(projected_samples))
+        projected_samples[permutation]
+        masks[permutation]
+        projected_samples, masks = projected_samples.cuda(), masks.cuda()
+
         _, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
