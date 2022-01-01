@@ -319,7 +319,7 @@ class GeneralizingTrainer(Trainer):
 
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)
-                        step1_collected[data_indices] = collected
+                        step1_collected[index] = collected
                         loss_step2.backward()
                         loss_step3.backward()
                         self.optim_step2.step()
