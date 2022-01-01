@@ -29,6 +29,7 @@ class Trainer():
         self.model = model(model_config, debug)
         self.image_size = model_config.get('image_size')
         self.category = model_config.get('category')
+        self.n_proj_samples = model_config.get('n_proj_samples', 8)
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1000)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.prior_name = model_config.get('prior_name', "box")
@@ -95,7 +96,7 @@ class Trainer():
                         collected = old_collected[data_index]
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
-                            (image, latent, collected)
+                            (image, latent, collected, n_proj_samples=self.n_proj_samples)
 
                         current_collected[data_index] = collected
                         loss.backward()

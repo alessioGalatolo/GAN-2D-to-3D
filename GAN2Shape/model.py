@@ -98,7 +98,7 @@ class GAN2Shape(nn.Module):
         depth = self.rescale_depth(depth)
         return F.mse_loss(depth[0], prior.detach()), depth
 
-    def forward_step1(self, images, latents, collected, step1=True, eval=False):
+    def forward_step1(self, images, latents, collected, step1=True, eval=False, **kwargs):
         b = 1
         h, w = self.image_size, self.image_size
         if self.debug:
@@ -178,7 +178,7 @@ class GAN2Shape(nn.Module):
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, image, latent, collected, n_proj_samples=8):
+    def forward_step2(self, image, latent, collected, n_proj_samples=8, **kwargs):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
         if self.debug:
             logging.info('Doing step 2')
@@ -228,7 +228,7 @@ class GAN2Shape(nn.Module):
         collected = projected_image.detach().cpu(), mask.detach().cpu()
         return loss_total, collected
 
-    def forward_step3(self, images, latents, collected):
+    def forward_step3(self, images, latents, collected, **kwargs):
         if self.debug:
             logging.info('Doing step 3')
 
