@@ -315,11 +315,7 @@ class GeneralizingTrainer(Trainer):
                         collected = step1_collected[index]
 
                         # step 2
-                        loss_step2, collected = self.model.forward_step2(image, latent, collected)
-                        projected_samples, masks = collected
-                        permutation = torch.randperm(len(projected_samples))
-                        projected_samples[permutation]
-                        collected = projected_samples.cuda(), masks.cuda()
+                        loss_step2, collected = self.model.forward_step2(image, latent, collected, self.n_proj_samples)
 
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)
