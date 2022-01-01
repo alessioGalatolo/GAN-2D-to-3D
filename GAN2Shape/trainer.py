@@ -334,12 +334,12 @@ class GeneralizingTrainer(Trainer):
                                        "image_num": data_indices})
 
             if self.plot_intermediate:
-                if data_indices % 3 == 0:
+                if index % 3 == 0:
                     recon_im, recon_depth = self.model.evaluate_results(images)
                     recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
                     plot_reconstructions(recon_im, recon_depth,
                                          total_it=str(total_it),
-                                         im_idx=str(data_indices),
+                                         im_idx=str(index),
                                          stage=str(stage))
 
         if self.save_ckpts:
