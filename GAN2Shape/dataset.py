@@ -21,7 +21,6 @@ class ImageDataset(Dataset):
             if self.transform is not None:
                 image = self.transform(image)
             # image = image[None, :]
-            image = image.unsqueeze(0)
             image = image * 2 - 1
             return image
 
@@ -43,6 +42,18 @@ class LatentDataset(Dataset):
             latent = torch.load(latent_path, map_location='cpu')
             if type(latent) is dict:
                 latent = latent['latent']
-            if latent.dim() == 1:
-                latent = latent.unsqueeze(0)
             return latent
+
+
+class ImageLatentDataset(Dataset):
+    def __init__(self, root_dir, list_filename='list.txt',
+                 transform=None, latent_folder='latents'):
+        self.image_dataset = ImageDataset(root_dir, list_filename, transform)
+        self.latent_dataset = LatentDataset(root_dir, list_filename, latent_folder)
+        assert len(self.image_dataset) == len(self.latent_dataset)
+
+    def __len__(self):
+        return int(len(self.image_dataset))
+
+    def __getitem__(self, index):
+        return self.image_dataset[index], self.latent_dataset[index], index

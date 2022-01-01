@@ -2,11 +2,12 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from gan2shape.trainer import Trainer
+from gan2shape.trainer import Trainer, GeneralizingTrainer
 from gan2shape.model import GAN2Shape
-from gan2shape.dataset import ImageDataset, LatentDataset
+from gan2shape.dataset import ImageLatentDataset
 from plotting import plot_originals
 import logging
+import time
 
 
 def main():
@@ -33,6 +34,16 @@ def main():
                         dest='LOG_FILE',
                         default=None,
                         help='name of the logging file')
+    parser.add_argument('--load-pretrained',
+                        dest='LOAD_PRETRAINED',
+                        action='store_true',
+                        default=False,
+                        help='Load pretrained weights before training')
+    parser.add_argument('--generalize',
+                        dest='GENERALIZE',
+                        action='store_true',
+                        default=False,
+                        help='If to run training procedure that favors generalization')
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -45,7 +56,9 @@ def main():
 
     if args.WANDB:
         import wandb
-        wandb.init(project=" gan-2d-to-3d", entity="dd2412-group42", config=config)
+        wandb.init(project=" gan-2d-to-3d",
+                   entity="dd2412-group42",
+                   config=config)
 
     # setup logging
     logging.basicConfig(filename=args.LOG_FILE,
@@ -60,15 +73,45 @@ def main():
             ]
         )
 
-    images = ImageDataset(config.get('root_path'), transform=transform)
-    latents = LatentDataset(config.get('root_path'))
+    load_dict = None
+    if args.LOAD_PRETRAINED:
+        load_dict = {
+            'category': config.get('category'),
+            'base_path': config.get('our_nets_ckpts')['VLADE_nets'],
+            'stage': config.get('stage', '*'),
+            'iteration': config.get('iteration', '*'),
+            'time': config.get('time', '*')
+        }
+
+    if not args.SAVE_CKPTS:
+        print(">>> Warning, not saving checkpoints.")
+        print("If this is a real run you want to rerun with --save-ckpts <<<")
+        time.sleep(0.5)
+
+    images_latents = ImageLatentDataset(config.get('root_path'),
+                                        transform=transform)
+
     # set configuration
-    trainer = Trainer(model=GAN2Shape, model_config=config,
-                      debug=args.DEBUG, plot_intermediate=True,
-                      log_wandb=args.WANDB, save_ckpts=args.SAVE_CKPTS)
+    trainer_config = {
+        'model': GAN2Shape, 'model_config': config,
+        'debug': args.DEBUG, 'plot_intermediate': True,
+        'log_wandb': args.WANDB, 'save_ckpts': args.SAVE_CKPTS,
+        'load_dict': load_dict
+    }
+
+    if args.GENERALIZE:
+        trainer = GeneralizingTrainer(**trainer_config)
+    else:
+        trainer = Trainer(**trainer_config)
+
+    stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+              {'step1': 200, 'step2': 500, 'step3': 400},
+              {'step1': 200, 'step2': 500, 'step3': 400},
+              {'step1': 200, 'step2': 500, 'step3': 400}]
+    generalized_stages = [{'step1': 70, 'step2': 70, 'step3': 60}]
 
     # plot_originals(images)
-    trainer.fit(images, latents, plot_depth_map=True)
+    trainer.fit(images_latents, stages=stages)
     return
 
 

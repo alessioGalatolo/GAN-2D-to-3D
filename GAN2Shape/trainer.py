@@ -1,11 +1,10 @@
 import math
 import logging
 import torch
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from random import shuffle
 from plotting import plot_predicted_depth_map, plot_reconstructions
 import wandb
-import matplotlib.pyplot as plt
 from gan2shape import utils
 
 
@@ -14,7 +13,7 @@ class Trainer():
                   'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
                   'horse', 'motorbike', 'person', 'pottedplant',
                   'sheep', 'sofa', 'train', 'tvmonitor']
-    CATEGORY2NUMBER = {category: i for i, category in enumerate(CATEGORIES)}
+    CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
 
     def __init__(self,
                  model,
@@ -22,7 +21,8 @@ class Trainer():
                  debug=False,
                  plot_intermediate=False,
                  log_wandb=False,
-                 save_ckpts=False):
+                 save_ckpts=False,
+                 load_dict=None):
         self.model = model(model_config, debug)
         self.image_size = model_config.get('image_size')
         self.category = model_config.get('category')
@@ -33,9 +33,8 @@ class Trainer():
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
-
-    def fit(self, images, latents, plot_depth_map=False):
-        # self.model.reinitialize_model()
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
         self.optim_step2 = Trainer.default_optimizer([self.model.offset_encoder_net],
@@ -46,104 +45,107 @@ class Trainer():
                                                       self.model.albedo_net],
                                                      lr=self.learning_rate)
 
-        self.reconstructions = {'images': [None] * len(images), 'depths': [None] * len(images)}
+    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
+            stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
+            shuffle=False):
+
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
+
         total_it = 0
-        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400}]
-        # stages = [{'step1': 70, 'step2': 70, 'step3': 60},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40},
-        #           {'step1': 20, 'step2': 50, 'step3': 40}]
-        if self.debug:
-            stages = [{'step1': 1, 'step2': 1, 'step3': 1},
-                      {'step1': 1, 'step2': 1, 'step3': 1}]
         n_stages = len(stages)
-        # array to keep the same shuffling among images, latents, etc.
-        shuffle_ids = [i for i in range(len(images))]
+        dataloader = DataLoader(images_latents,
+                                batch_size=1,
+                                shuffle=shuffle)
         # Sequential training of the D,A,L,V nets
 
         # -----------------Main loop through all images------------------------
-        iterator = tqdm(shuffle_ids)
-        for i_batch in shuffle_ids:
-            logging.info(f'Training on image {i_batch}/{len(shuffle_ids)}')
-            image_batch = images[i_batch].cuda()
-            latent_batch = latents[i_batch].cuda()
+        data_iterator = tqdm(dataloader)
+        for batch in data_iterator:
+            image, latent, data_index = batch
+            image, latent, data_index = image.cuda(), latent.cuda(), data_index[0]
+            logging.info(f'Training on image {data_index}/{len(data_iterator)}')
 
-            # Pretrain depth net on the prior shape
-            self.pretrain_on_prior(image_batch, i_batch, plot_depth_map)
+            if not self.debug:
+                # Pretrain depth net on the prior shape
+                self.pretrain_on_prior(image, data_index, plot_depth_map)
 
             # -----------------Loop through all stages-------------------------
             for stage in range(n_stages):
-                iterator.set_description("Stage: " + str(stage) + "/"
-                                         + str(n_stages) + ". Image: "
-                                         + str(i_batch+1) + "/"
-                                         + str(len(images)) + ".")
-                old_collected = [None]*len(images)
+                old_collected = [None]*len(images_latents)
 
                 # -----------------------Step 1 and 2--------------------------
                 for step in [1, 2]:
-                    logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
-                    step_iterator = tqdm(range(stages[stage][f'step{step}']))
-                    current_collected = [None]*len(images)
+                    if self.debug:
+                        logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
+                    data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                                  + f"Image: {data_index+1}/{len(images_latents)}."
+                                                  + f"Step: {step}.")
+                    current_collected = [None]*len(images_latents)
                     optim = getattr(self, f'optim_step{step}')
-                    for _ in step_iterator:
+                    for _ in range(stages[stage][f'step{step}']):
                         optim.zero_grad()
-                        collected = old_collected[i_batch]
+                        collected = old_collected[data_index]
 
                         loss, collected = getattr(self.model, f'forward_step{step}')\
-                            (image_batch, latent_batch, collected)
+                            (image, latent, collected)
 
-                        current_collected[i_batch] = collected
+                        current_collected[data_index] = collected
                         loss.backward()
                         optim.step()
-                        step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                         total_it += 1
 
                         if self.log_wandb:
                             wandb.log({"stage": stage,
                                        "total_it": total_it,
                                        f"loss_step{step}": loss,
-                                       "image_num": i_batch})
+                                       "image_num": data_index})
                     old_collected = current_collected
 
                 # -----------------------------Step 3--------------------------
-                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
-                step_iterator = tqdm(range(stages[stage]['step3']))
+                if self.debug:
+                    logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
+                data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                              + f"Image: {data_index+1}/{len(images_latents)}."
+                                              + f"Step: {step}.")
                 optim = self.optim_step3
-                for _ in step_iterator:
-                    # FIXME: not sure they do the same loop for step 3
-                    projected_samples, masks = old_collected[i_batch]
+                for _ in range(stages[stage]['step3']):
+                    projected_samples, masks = old_collected[data_index]
                     permutation = torch.randperm(len(projected_samples))
                     projected_samples[permutation]
                     optim.zero_grad()
                     collected = projected_samples.cuda(), masks.cuda()
 
-                    loss, _ = self.model.forward_step3(image_batch, latent_batch, collected)
+                    loss, _ = self.model.forward_step3(image, latent, collected)
                     loss.backward()
                     optim.step()
-                    step_iterator.set_description("Loss = " + str(loss.detach().cpu()))
                     total_it += 1
 
                     if self.log_wandb:
                         wandb.log({"stage": stage,
                                    "total_it": total_it,
                                    "loss_step3": loss,
-                                   "image_num": i_batch})
+                                   "image_num": data_index})
 
                 if self.plot_intermediate:
-                    if i_batch % 3 == 0:
-                        recon_im, recon_depth = self.model.evaluate_results(image_batch)
+                    if data_index % 3 == 0:
+                        recon_im, recon_depth = self.model.evaluate_results(image)
                         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
                         plot_reconstructions(recon_im, recon_depth,
                                              total_it=str(total_it),
-                                             im_idx=str(i_batch),
+                                             im_idx=str(data_index),
                                              stage=str(stage))
 
-                if self.save_ckpts:
-                    self.model.save_checkpoint(stage, total_it, self.category)
+            if self.save_ckpts:
+                self.model.save_checkpoint(data_index, stage, total_it, self.category)
         logging.info('Finished Training')
+
+    def load_model_checkpoint(self, load_dict):
+        self.model.load_from_checkpoint(load_dict['base_path'],
+                                        load_dict['category'],
+                                        load_dict['stage'],
+                                        load_dict['iteration'],
+                                        load_dict['time'])
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
@@ -218,6 +220,7 @@ class Trainer():
         with torch.no_grad():
             size = 473
             image = utils.resize(image, [size, size])
+            # FIXME: only if car, cat
             image = image / 2 + 0.5
             image[:, 0].sub_(0.485).div_(0.229)
             image[:, 1].sub_(0.456).div_(0.224)
@@ -232,7 +235,8 @@ class Trainer():
             if not torch.any(mask):
                 logging.warning(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
-        return utils.resize(mask.float(), [self.image_size, self.image_size])
+            mask = mask.float()
+        return utils.resize(mask, [self.image_size, self.image_size])
 
     @staticmethod
     def default_optimizer(model_list, lr=1e-4, betas=(0.9, 0.999), weight_decay=5e-4):
@@ -243,3 +247,124 @@ class Trainer():
             param_list += list(params)
         return torch.optim.Adam(param_list, lr=lr,
                                 betas=betas, weight_decay=weight_decay)
+
+
+class GeneralizingTrainer(Trainer):
+    # exactly as the training class but the training loop
+    # is designed to favor generalization
+    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
+            stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
+            batch_size=2, shuffle=False):
+        if load_dict is not None:
+            self.load_model_checkpoint(load_dict)
+
+        total_it = 0
+        n_stages = len(stages)
+        dataloader = DataLoader(images_latents,
+                                batch_size=batch_size,
+                                shuffle=shuffle)
+
+        # -----------------Pretrain on all images------------------------
+        data_iterator = tqdm(dataloader)
+        data_iterator.set_description("Pretraining depth net")
+        for batch in data_iterator:
+            images, latents, data_indices = batch
+            images, latents = images.cuda(), latents.cuda()
+            if not self.debug:
+                # Pretrain depth net on the prior shape
+                self.pretrain_on_prior(images, data_indices, plot_depth_map)
+
+        # -----------------Loop through all stages-------------------------
+        for stage in range(n_stages):
+            # -----------------------------Step 1--------------------------
+            if self.debug:
+                logging.info(f"Doing step 1, stage {stage + 1}/{n_stages}")
+            data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                          + f"Image: {data_indices+1}/{len(images_latents)}."
+                                          + "Step: 1.")
+            step1_collected = [None]*len(images_latents)
+            optim = self.optim_step1
+            for _ in range(stages[stage]['step1']):
+                # -----------------Loop through all images-----------------
+                for batch in data_iterator:
+                    images, latents, data_indices = batch
+                    # FIXME: current model doesn't support batches
+                    images, latents = images.cuda(), latents.cuda()
+
+                    optim.zero_grad()
+
+                    loss, collected = self.model.forward_step1(images, latents, None)
+
+                    normals, lights_a, lights_b, albedos, depths, canon_masks = collected
+                    for collected_index, data_index in enumerate(data_indices):
+                        step1_collected[data_index] = (normals[collected_index:collected_index+1],
+                                                       lights_a[collected_index:collected_index+1],
+                                                       lights_b[collected_index:collected_index+1],
+                                                       albedos[collected_index:collected_index+1],
+                                                       depths[collected_index:collected_index+1],
+                                                       canon_masks[collected_index])
+                    loss.backward()
+                    optim.step()
+                    total_it += 1
+
+                    if self.log_wandb:
+                        wandb.log({"stage": stage,
+                                   "total_it": total_it,
+                                   "loss_step1": loss,
+                                   "image_num": data_indices})
+            # -----------------------------Step 2 and 3------------------------
+            if self.debug:
+                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
+            data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                          + f"Image: {data_indices+1}/{len(images_latents)}."
+                                          + "Step: 3.")
+            for _ in range(stages[stage]['step2']):
+                for batch in data_iterator:
+                    images, latents, data_indices = batch
+                    # FIXME: current model doesn't support batches
+                    images, latents = images.cuda(), latents.cuda()
+
+                    for batch_index in range(len(images)):
+                        image = images[batch_index:batch_index+1]
+                        latent = latents[batch_index:batch_index+1]
+                        index = data_indices[batch_index]
+
+                        self.optim_step2.zero_grad()
+                        self.optim_step3.zero_grad()
+                        collected = step1_collected[index]
+
+                        # step 2
+                        loss_step2, collected = self.model.forward_step2(image, latent, collected)
+                        projected_samples, masks = collected
+                        permutation = torch.randperm(len(projected_samples))
+                        projected_samples[permutation]
+                        collected = projected_samples.cuda(), masks.cuda()
+
+                        # step 3
+                        loss_step3, _ = self.model.forward_step3(image, latent, collected)
+                        step1_collected[data_indices] = collected
+                        loss_step2.backward()
+                        loss_step3.backward()
+                        self.optim_step2.step()
+                        self.optim_step3.step()
+                        total_it += 1
+
+                        if self.log_wandb:
+                            wandb.log({"stage": stage,
+                                       "total_it": total_it,
+                                       "loss_step2": loss_step2,
+                                       "loss_step3": loss_step3,
+                                       "image_num": data_indices})
+
+            if self.plot_intermediate:
+                if data_indices % 3 == 0:
+                    recon_im, recon_depth = self.model.evaluate_results(images)
+                    recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+                    plot_reconstructions(recon_im, recon_depth,
+                                         total_it=str(total_it),
+                                         im_idx=str(data_indices),
+                                         stage=str(stage))
+
+        if self.save_ckpts:
+            self.model.save_checkpoint(data_indices, stage, total_it, self.category)
+        logging.info('Finished Training')

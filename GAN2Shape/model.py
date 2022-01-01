@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
-from torch.utils import data
 from gan2shape import utils
 from gan2shape import networks
 from gan2shape.renderer import Renderer
@@ -75,14 +74,14 @@ class GAN2Shape(nn.Module):
         self.albedo_net = networks.AlbedoNet(self.image_size, self.debug).cuda()
         self.offset_encoder_net = networks.OffsetEncoder(self.image_size, debug=self.debug).cuda()
 
-        self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False).cuda()
-        pspnet_checkpoint = torch.load('checkpoints/parsing/pspnet_ade20k.pth')
-        self.mask_net.load_state_dict(pspnet_checkpoint['state_dict'],
-                                      strict=False)
+        self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False)
+        temp = nn.DataParallel(self.mask_net)
+        checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
+        temp.load_state_dict(checkpoint['state_dict'], strict=False)
+        self.mask_net = temp.module.cuda()
         self.mask_net.eval()
 
         # Misc
-        self.n_proj_samples = config.get('n_proj_samples', 8)
         self.max_depth = 1.1
         self.min_depth = 0.9
         # self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
@@ -110,32 +109,31 @@ class GAN2Shape(nn.Module):
         view_scale = config.get('view_scale', 1)
         self.view_light_sampler = ViewLightSampler(view_mvn_path, light_mvn_path, view_scale)
 
-        view_mvn = torch.load(view_mvn_path)
-        light_mvn = torch.load(light_mvn_path)
-        self.view_mean = view_mvn['mean'].cuda()
-        self.light_mean = light_mvn['mean'].cuda()
-
-        # Losses
-        # FIXME: standardize their use between steps
-        self.photo_loss = PhotometricLoss()
-        self.percep_loss = PerceptualLoss()
-        self.smooth_loss = SmoothLoss()
-
         self.ckpt_paths = config.get('our_nets_ckpts')
+
+        # losses
+        self.smooth_loss = SmoothLoss()
+        self.perceptual_loss = PerceptualLoss(model='net-lin', net='vgg',
+                                              use_gpu=True,
+                                              gpu_ids=[torch.device('cuda:0')])
+        self.discriminator_loss = DiscriminatorLoss()
+        self.photometric_loss = PhotometricLoss()
 
     def rescale_depth(self, depth):
         return (1+depth)/2*self.max_depth + (1-depth)/2*self.min_depth
 
     def depth_net_forward(self, inputs, prior):
         depth_raw = self.depth_net(inputs).squeeze(1)
-        depth = self.get_clamped_depth(depth_raw, self.image_size,
-                                       self.image_size, clamp_border=False)
-        return F.mse_loss(depth, prior.detach()), depth
+        depth = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
+        depth = depth.tanh()
+        depth = self.rescale_depth(depth)
+        return F.mse_loss(depth[0], prior.detach()), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False):
         b = 1
         h, w = self.image_size, self.image_size
-        logging.info('Doing step 1')
+        if self.debug:
+            logging.info('Doing step 1')
 
         # Depth
         # TODO: add flips?
@@ -153,7 +151,7 @@ class GAN2Shape(nn.Module):
         else:
             view = self.viewpoint_net(images)
         # Add mean
-        view = view + self.view_mean.unsqueeze(0)
+        view = view + self.view_light_sampler.view_mean.unsqueeze(0)
 
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
@@ -169,7 +167,7 @@ class GAN2Shape(nn.Module):
         else:
             lighting = self.lighting_net(images)
         # Add mean
-        lighting = lighting + self.light_mean.unsqueeze(0)
+        lighting = lighting + self.view_light_sampler.light_mean.unsqueeze(0)
         lighting_a, lighting_b, lighting_d = self.get_lighting_directions(lighting)
 
         # Shading
@@ -194,9 +192,9 @@ class GAN2Shape(nn.Module):
             return recon_im, recon_depth
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], images, mask=recon_im_mask[:b])
-        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
-                                        images * recon_im_mask[:b])
+        loss_l1_im = self.photometric_loss(recon_im[:b], images, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
+                                            images * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
@@ -204,14 +202,18 @@ class GAN2Shape(nn.Module):
         # FIXME include use_mask bool?
         # if use_mask == false:
         # if use_mask is false set canon_mask to None
-        canon_mask = None
+        if len(images) == 1:
+            canon_mask = None
+        else:
+            canon_mask = [None]*len(images)
         collected = (normal, lighting_a, lighting_b, albedo, depth, canon_mask)
         return loss_total, collected
 
-    def forward_step2(self, images, latents, collected):
+    def forward_step2(self, image, latent, collected, n_proj_samples=8):
         F1_d = 2  # number of mapping network layers used to regularize the latent offset
-        logging.info('Doing step 2')
-        origin_size = images.size(0)
+        if self.debug:
+            logging.info('Doing step 2')
+        origin_size = image.size(0)
         # unpack collected
         *tensors, canon_mask = collected
         for t in tensors:
@@ -219,13 +221,13 @@ class GAN2Shape(nn.Module):
         normal, light_a, light_b, albedo, depth = tensors
 
         with torch.no_grad():
-            pseudo_im, mask = self.sample_pseudo_imgs(self.n_proj_samples,
+            pseudo_im, mask = self.sample_pseudo_imgs(n_proj_samples,
                                                       normal,
                                                       light_a, light_b,
                                                       albedo, depth,
                                                       canon_mask)
 
-            gan_im, _ = self.generator(latents, input_is_w=True,
+            gan_im, _ = self.generator([latent], input_is_w=True,
                                        truncation_latent=self.mean_latent,
                                        truncation=self.truncation, randomize_noise=False)
             gan_im = gan_im.clamp(min=-1, max=1)
@@ -237,7 +239,8 @@ class GAN2Shape(nn.Module):
             center_h = self.generator.style_forward(torch.zeros(1, self.z_dim).cuda(),
                                                     depth=8-F1_d)
 
-        latent_projection = self.latent_projection(pseudo_im, gan_im, latents, center_w, center_h, F1_d)
+        latent_projection = self.latent_projection(pseudo_im, gan_im, latent,
+                                                   center_w, center_h, F1_d)
         projected_image, offset = self.generator.invert(pseudo_im,
                                                         latent_projection,
                                                         self.truncation,
@@ -246,18 +249,19 @@ class GAN2Shape(nn.Module):
         # projected_image = utils.resize(projected_image, [origin_size, origin_size])
         # projected_image = utils.crop(projected_image, self.crop)
         projected_image = utils.resize(projected_image, [self.image_size, self.image_size])
-        self.loss_l1 = PhotometricLoss()(projected_image, pseudo_im, mask=mask)
+        self.loss_l1 = self.photometric_loss(projected_image, pseudo_im, mask=mask)
 
-        self.loss_rec = DiscriminatorLoss()(self.discriminator,
-                                            projected_image,
-                                            pseudo_im, mask=mask)
+        self.loss_rec = self.discriminator_loss(self.discriminator,
+                                                projected_image,
+                                                pseudo_im, mask=mask)
         self.loss_latent_norm = torch.mean(offset ** 2)
         loss_total = self.loss_l1 + self.loss_rec + self.lam_regular * self.loss_latent_norm
         collected = projected_image.detach().cpu(), mask.detach().cpu()
         return loss_total, collected
 
     def forward_step3(self, images, latents, collected):
-        logging.info('Doing step 3')
+        if self.debug:
+            logging.info('Doing step 3')
 
         # --------- Extract Albedo and Depth from the original image ----------
         projected_samples, masks = collected
@@ -265,19 +269,19 @@ class GAN2Shape(nn.Module):
         normal, _, _, albedo, depth, _ = collected
 
         # --------- Extract View and Light from the projected sample ----------
-        b = self.n_proj_samples
+        b = len(projected_samples)
 
         # View
         view = self.viewpoint_net(projected_samples)  # V(i)
         # Add mean
-        view = view + self.view_mean.unsqueeze(0)  # TODO: maybe use VLSampler instead
+        view = view + self.view_light_sampler.view_mean.unsqueeze(0)
         view_trans = self.get_view_transformation(view)
         self.renderer.set_transform_matrices(view_trans)
 
         # Lighting
         light = self.lighting_net(projected_samples)   # L(i)
         # Add mean
-        light = light + self.light_mean.unsqueeze(0)
+        light = light + self.view_light_sampler.light_mean.unsqueeze(0)
 
         light_a, light_b, light_d = self.get_lighting_directions(light)
 
@@ -285,7 +289,7 @@ class GAN2Shape(nn.Module):
         diffuse_shading, texture = self.get_shading(normal, light_a,
                                                     light_b, light_d, albedo)
 
-        depth = depth.expand(self.n_proj_samples,
+        depth = depth.expand(b,
                              self.image_size,
                              self.image_size)
         recon_depth = self.renderer.warp_canon_depth(depth)
@@ -299,9 +303,9 @@ class GAN2Shape(nn.Module):
             .clamp(min=-1, max=1)
 
         # Loss
-        loss_l1_im = self.photo_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
-        loss_perc_im = self.percep_loss(recon_im[:b] * recon_im_mask[:b],
-                                        projected_samples * recon_im_mask[:b])
+        loss_l1_im = self.photometric_loss(recon_im[:b], projected_samples, mask=recon_im_mask[:b])
+        loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
+                                            projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
         loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
         loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
@@ -391,6 +395,9 @@ class GAN2Shape(nn.Module):
     def evaluate_results(self, image):
         with torch.no_grad():
             recon_im, recon_depth = self.forward_step1(image, None, None, eval=True)
+            depth_raw = self.depth_net(image).squeeze(1)
+            recon_depth = self.get_clamped_depth(depth_raw, self.image_size,
+                                                 self.image_size, clamp_border=False)
         return recon_im, recon_depth
 
     def reset_params(self, net):
@@ -408,7 +415,7 @@ class GAN2Shape(nn.Module):
         self.reset_params(self.albedo_net)
         self.reset_params(self.offset_encoder_net)
 
-    def save_checkpoint(self, stage, total_it, category='car'):
+    def save_checkpoint(self, img_idx, stage, total_it, category='car'):
         try:
             nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
             now = datetime.datetime.now()
@@ -420,7 +427,7 @@ class GAN2Shape(nn.Module):
 
                 # full path
                 filename = self.build_checkpoint_path(self.ckpt_paths['VLADE_nets'],
-                                                      category, net, stage,
+                                                      category, net, img_idx, stage,
                                                       total_it, now)
                 # path without filename
                 save_path = filename.rsplit('/', maxsplit=1)[0]
@@ -443,8 +450,8 @@ class GAN2Shape(nn.Module):
                 checkpoint = torch.load(f, map_location=device)
             getattr(self, f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
 
-    def build_checkpoint_path(self, base, category, net, stage='*', it='*', time='*'):
-        path = f'{base}/{category}/{net}_stage_{stage}_{it}_it_{time}.pth'
+    def build_checkpoint_path(self, base, category, net, img_idx, stage='*', it='*', time='*'):
+        path = f'{base}/{category}/{net}_image_{img_idx}_stage_{stage}_{it}_it_{time}.pth'
         if stage == '*' or it == '*' or time == '*':
             # look for checkpoints
             possible_paths = glob(path)

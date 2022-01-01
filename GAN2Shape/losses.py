@@ -1,32 +1,11 @@
-from gan2shape.stylegan2 import PerceptualLoss as PL
+from gan2shape.stylegan2 import PerceptualLoss
 import torch
 import torch.nn as nn
 
-
-class PerceptualLoss(PL):
-    _instance = None
-
-    def __init__(self) -> None:
-        super().__init__(model='net-lin', net='vgg',
-                         use_gpu=True, gpu_ids=[torch.device('cuda:0')])
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-
 class DiscriminatorLoss():
-    _instance = None
-
     def __init__(self, ftr_num=4, data_parallel=False):
         self.data_parallel = data_parallel
         self.ftr_num = ftr_num
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __call__(self, D, fake_img, real_img, mask=None):
         if self.data_parallel:
