@@ -112,7 +112,7 @@ def main():
     generalized_stages = [{'step1': 70, 'step2': 70, 'step3': 60}]
 
     # plot_originals(images)
-    trainer.fit(images_latents, stages=stages, plot_depth_map=True)
+    trainer.fit(images_latents, stages=stages)
     return
 
 

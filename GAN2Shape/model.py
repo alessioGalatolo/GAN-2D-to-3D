@@ -53,8 +53,7 @@ class GAN2Shape(nn.Module):
         # Misc
         self.max_depth = 1.1
         self.min_depth = 0.9
-        # self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
-        self.border_depth = 1.02
+        self.border_depth = 0.7*self.max_depth + 0.3*self.min_depth
         self.lam_perc = 1
         self.lam_smooth = 0.01
         self.lam_regular = 0.01
