@@ -160,25 +160,33 @@ class Trainer():
         with torch.no_grad():
             height, width = self.image_size, self.image_size
             center_x, center_y = int(width / 2), int(height / 2)
+            near = 0.91
+            far = 1.02
+            noise_treshold = 0.7
+            prior = torch.Tensor(1, height, width).fill_(far)
             if shape == "box":
                 box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
                 prior = torch.zeros([1, height, width])
                 prior[0,
-                      center_y-box_height: center_y+box_height,
-                      center_x-box_width: center_x+box_width] = 1
+                      center_x-box_width: center_x+box_width,
+                      center_y-box_height: center_y+box_height] = 1
+                prior = prior
                 return prior.cuda()
             elif shape == "masked_box":
                 # same as box but only project object
                 box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
-                prior = torch.zeros([1, height, width])
-                prior[0,
-                      center_y-box_height: center_y+box_height,
-                      center_x-box_width: center_x+box_width] = 1
                 mask = self.image_mask(image)[0].cpu()
-                prior = prior * mask
+
+                # cut noise in mask
+                noise = mask < noise_treshold
+                mask[noise] = 0
+                mask = (mask - noise_treshold) / (1 - noise_treshold)
+
+                prior = far - prior * mask
                 return prior.cuda()
             elif shape == "ellipsoid":
-                mask = self.image_mask(image)[0, 0] >= 0.7
+                radius = 0.4
+                mask = self.image_mask(image)[0, 0] >= noise_treshold
                 max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
 
                 # if self.category in ['car', 'church']:
@@ -188,11 +196,7 @@ class Trainer():
                 ratio = (max_y - min_y) / (max_x - min_x)
                 c_x = (max_x + min_x) / 2
                 c_y = (max_y + min_y) / 2
-                radius = 0.4
-                near = 0.91
-                far = 1.02
 
-                ellipsoid = torch.Tensor(1, height, width).fill_(far)
                 i, j = torch.meshgrid(torch.linspace(0, width-1, width),
                                       torch.linspace(0, height-1, height))
                 i = (i - height/2) / ratio + height/2
@@ -201,8 +205,8 @@ class Trainer():
                 area = dist <= r_pixel
                 dist_rescale = dist / r_pixel * temp
                 depth = radius - torch.sqrt(torch.abs(radius ** 2 - dist_rescale ** 2)) + near
-                ellipsoid[0, area] = depth[area]
-                return ellipsoid.cuda()
+                prior[0, area] = depth[area]
+                return prior.cuda()
             else:
                 return torch.ones([1, height, width])
 
