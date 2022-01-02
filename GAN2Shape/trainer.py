@@ -139,8 +139,8 @@ class Trainer():
         iterator = tqdm(range(self.n_epochs_prior))
         for _ in iterator:
             inputs = image.cuda()
-            loss, depth = self.model.depth_net_forward(inputs, prior)
             optim.zero_grad()
+            loss, depth = self.model.depth_net_forward(inputs, prior)
             loss.backward()
             optim.step()
 
