@@ -90,7 +90,8 @@ def main():
         time.sleep(0.5)
 
     images_latents = ImageLatentDataset(config.get('root_path'),
-                                        transform=transform)
+                                        transform=transform,
+                                        subset = None)
 
     # set configuration
     trainer_config = {

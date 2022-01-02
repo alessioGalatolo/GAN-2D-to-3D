@@ -6,11 +6,17 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(Dataset):
-    def __init__(self, root_dir, list_filename='list.txt', transform=None):
+    def __init__(self, root_dir, list_filename='list.txt', transform=None, subset=None):
         self.root_dir = root_dir
         self.transform = transform
         list_path = path.join(self.root_dir, list_filename)
         self.file_list = pd.read_csv(list_path, header=None)
+        if subset is not None:
+            try:
+                self.file_list = self.file_list.iloc[subset]
+            except IndexError as e:
+                print(e, ": Invalid image subset indices specified \nExiting ...")
+                quit()
 
     def __len__(self):
         return int(len(self.file_list))
@@ -26,11 +32,17 @@ class ImageDataset(Dataset):
 
 
 class LatentDataset(Dataset):
-    def __init__(self, root_dir, list_filename='list.txt', latent_folder='latents'):
+    def __init__(self, root_dir, list_filename='list.txt', latent_folder='latents', subset=None):
         self.root_dir = root_dir
         self.latent_folder = latent_folder
         list_path = path.join(self.root_dir, list_filename)
         self.file_list = pd.read_csv(list_path, header=None)
+        if subset is not None:
+            try:
+                self.file_list = self.file_list.iloc[subset]
+            except IndexError as e:
+                print(e, ": Invalid image subset indices specified \nExiting ...")
+                quit()
 
     def __len__(self):
         return int(len(self.file_list))
@@ -47,9 +59,9 @@ class LatentDataset(Dataset):
 
 class ImageLatentDataset(Dataset):
     def __init__(self, root_dir, list_filename='list.txt',
-                 transform=None, latent_folder='latents'):
-        self.image_dataset = ImageDataset(root_dir, list_filename, transform)
-        self.latent_dataset = LatentDataset(root_dir, list_filename, latent_folder)
+                 transform=None, latent_folder='latents', subset=None):
+        self.image_dataset = ImageDataset(root_dir, list_filename, transform, subset)
+        self.latent_dataset = LatentDataset(root_dir, list_filename, latent_folder, subset)
         assert len(self.image_dataset) == len(self.latent_dataset)
 
     def __len__(self):
