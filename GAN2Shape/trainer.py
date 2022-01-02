@@ -136,6 +136,10 @@ class Trainer():
         logging.info("Pretraining depth net on prior shape")
         prior = self.prior_shape(image, shape=self.prior_name)
 
+        if plot_depth_map:
+            plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
+            plot_predicted_depth_map(plt_prior, self.image_size, block=True)
+
         iterator = tqdm(range(self.n_epochs_prior))
         for _ in iterator:
             inputs = image.cuda()
@@ -153,10 +157,13 @@ class Trainer():
 
         if plot_depth_map:
             depth = depth.detach().cpu().numpy()
+            plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
+            plot_predicted_depth_map(plt_prior, self.image_size, block=True)
             plot_predicted_depth_map(depth, self.image_size, block=True)
         return train_loss
 
     def prior_shape(self, image, shape="box"):
+        #FIXME: should probably move to its own file since its getting long
         with torch.no_grad():
             height, width = self.image_size, self.image_size
             center_x, center_y = int(width / 2), int(height / 2)
@@ -184,6 +191,25 @@ class Trainer():
 
                 prior = far - prior * mask
                 return prior.cuda()
+
+            elif shape == "smoothed_box":
+                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
+                prior = torch.zeros([1, height, width])
+                prior[0,
+                      center_x-box_width: center_x+box_width,
+                      center_y-box_height: center_y+box_height] = 1
+                prior = prior
+                
+                #Smoothing
+                kernel_size = 9
+                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=4)
+                filt = torch.ones(1,1, kernel_size, kernel_size)
+                filt = filt / torch.norm(filt)
+                conv.weight = torch.nn.Parameter(filt)
+                with torch.no_grad():
+                    prior = conv(prior.unsqueeze(0))
+                return prior.squeeze(0).cuda()
+
             elif shape == "ellipsoid":
                 radius = 0.4
                 mask = self.image_mask(image)[0, 0] >= noise_treshold
