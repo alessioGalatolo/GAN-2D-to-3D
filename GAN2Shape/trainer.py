@@ -193,26 +193,32 @@ class Trainer():
                 return prior.cuda()
 
             elif shape == "smoothed_box":
+                # Smoothed masked_box
                 box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
-                prior = torch.zeros([1, height, width])
-                prior[0,
-                      center_x-box_width: center_x+box_width,
-                      center_y-box_height: center_y+box_height] = 1
-                prior = prior
+                mask = self.image_mask(image)[0].cpu()
+
+                # cut noise in mask
+                noise = mask < noise_treshold
+                mask[noise] = 0
+                mask = (mask - noise_treshold) / (1 - noise_treshold)
+
+                prior = far - prior * mask
                 
-                #Smoothing through a double convolution
-                kernel_size = 21
-                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=10)
+                #Smoothing through multi convolution
+                kernel_size = 11
+                pad = 5
+                n_convs = 3
+                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=0)
                 filt = torch.ones(1,1, kernel_size, kernel_size)
                 filt = filt / torch.norm(filt)
                 conv.weight = torch.nn.Parameter(filt)
-                with torch.no_grad():
-                    prior = conv(prior.unsqueeze(0))
+                prior = prior.unsqueeze(0)
+                for i in range(n_convs):
                     prior = conv(prior)
-                    prior = conv(prior)
+                    prior = near + ((prior - torch.min(prior))*(far - near)) / (torch.max(prior) - torch.min(prior))
+                    prior = torch.nn.functional.pad(prior,tuple([pad]*4), value=far)
                 
-                #Rescale
-                prior = near + ((prior - torch.min(prior))*(far - near)) / (torch.max(prior) - torch.min(prior))
+                #Rescale                
                 return prior.squeeze(0).cuda()
 
             elif shape == "ellipsoid":
