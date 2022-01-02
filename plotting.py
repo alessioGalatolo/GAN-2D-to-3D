@@ -4,12 +4,13 @@ import numpy as np
 import plotly.graph_objs as go
 plt.axis('equal')
 
+
 def plot_predicted_depth_map(depth, image_size, img_idx=0, block=False):
     x = np.arange(0, image_size, 1)
     y = np.arange(0, image_size, 1)
     X, Y = np.meshgrid(x, y)
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    ax.plot_surface(X, Y, depth[0], cmap=cm.coolwarm,
+    ax.plot_surface(X, Y, depth[0, 0], cmap=cm.coolwarm,
                     linewidth=0, antialiased=False)
     plt.show(block=block)
 

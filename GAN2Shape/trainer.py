@@ -153,7 +153,7 @@ class Trainer():
 
         if plot_depth_map:
             depth = depth.detach().cpu().numpy()
-            plot_predicted_depth_map(depth, self.image_size)
+            plot_predicted_depth_map(depth, self.image_size, block=True)
         return train_loss
 
     def prior_shape(self, image, shape="box"):
@@ -167,10 +167,17 @@ class Trainer():
                       center_y-box_height: center_y+box_height,
                       center_x-box_width: center_x+box_width] = 1
                 return prior.cuda()
+            elif shape == "masked_box":
+                # same as box but only project object
+                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
+                prior = torch.zeros([1, height, width])
+                prior[0,
+                      center_y-box_height: center_y+box_height,
+                      center_x-box_width: center_x+box_width] = 1
+                mask = self.image_mask(image)[0].cpu()
+                prior = prior * mask
+                return prior.cuda()
             elif shape == "ellipsoid":
-                height, width = self.image_size, self.image_size
-                c_x, c_y = width / 2, height / 2
-
                 mask = self.image_mask(image)[0, 0] >= 0.7
                 max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
 
