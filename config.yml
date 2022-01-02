@@ -13,7 +13,7 @@ view_scale: 1
 refinement_iterations: 1
 n_proj_samples: 2
 batch_size: 2
-prior_name: ellipsoid
+prior_name: smoothed_box
 
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth

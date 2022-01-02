@@ -200,14 +200,15 @@ class Trainer():
                       center_y-box_height: center_y+box_height] = 1
                 prior = prior
                 
-                #Smoothing
-                kernel_size = 9
-                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=4)
+                #Smoothing through a double convolution
+                kernel_size = 21
+                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=10)
                 filt = torch.ones(1,1, kernel_size, kernel_size)
                 filt = filt / torch.norm(filt)
                 conv.weight = torch.nn.Parameter(filt)
                 with torch.no_grad():
                     prior = conv(prior.unsqueeze(0))
+                    prior = conv(prior)
                 return prior.squeeze(0).cuda()
 
             elif shape == "ellipsoid":
