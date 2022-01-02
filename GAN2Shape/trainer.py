@@ -209,6 +209,10 @@ class Trainer():
                 with torch.no_grad():
                     prior = conv(prior.unsqueeze(0))
                     prior = conv(prior)
+                    prior = conv(prior)
+                
+                #Rescale
+                prior = near + ((prior - torch.min(prior))*(far - near)) / (torch.max(prior) - torch.min(prior))
                 return prior.squeeze(0).cuda()
 
             elif shape == "ellipsoid":
