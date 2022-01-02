@@ -110,14 +110,13 @@ class Trainer():
                                        "image_num": data_index})
                     old_collected = current_collected
 
-                if self.plot_intermediate:
-                    if data_index % 3 == 0:
-                        recon_im, recon_depth = self.model.evaluate_results(image)
-                        recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-                        plot_reconstructions(recon_im, recon_depth,
-                                             total_it=str(total_it),
-                                             im_idx=str(data_index),
-                                             stage=str(stage))
+            if self.plot_intermediate:
+                recon_im, recon_depth = self.model.evaluate_results(image)
+                recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+                plot_reconstructions(recon_im, recon_depth,
+                                        total_it=str(total_it),
+                                        im_idx=str(data_index.item()),
+                                        stage=str(stage))
 
             if self.save_ckpts:
                 self.model.save_checkpoint(data_index, stage, total_it, self.category)
@@ -138,7 +137,9 @@ class Trainer():
 
         if plot_depth_map:
             plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
-            plot_predicted_depth_map(plt_prior, self.image_size, block=True)
+            plot_predicted_depth_map(plt_prior, self.image_size, 
+                block=False, save=True, img_idx=i_batch.item(),
+                filename="prior")
 
         iterator = tqdm(range(self.n_epochs_prior))
         for _ in iterator:
@@ -157,8 +158,6 @@ class Trainer():
 
         if plot_depth_map:
             depth = depth.detach().cpu().numpy()
-            plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
-            plot_predicted_depth_map(plt_prior, self.image_size, block=True)
             plot_predicted_depth_map(depth, self.image_size, block=True)
         return train_loss
 
@@ -204,7 +203,7 @@ class Trainer():
 
                 prior = far - prior * mask
                 
-                #Smoothing through multi convolution
+                #Smoothing through repeated convolution
                 kernel_size = 11
                 pad = 5
                 n_convs = 3
@@ -215,10 +214,11 @@ class Trainer():
                 prior = prior.unsqueeze(0)
                 for i in range(n_convs):
                     prior = conv(prior)
+                    # Rescale depth values to appropriate range
                     prior = near + ((prior - torch.min(prior))*(far - near)) / (torch.max(prior) - torch.min(prior))
+                    # Pad result with 'far' to keep the image size
                     prior = torch.nn.functional.pad(prior,tuple([pad]*4), value=far)
-                
-                #Rescale                
+                        
                 return prior.squeeze(0).cuda()
 
             elif shape == "ellipsoid":

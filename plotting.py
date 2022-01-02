@@ -1,18 +1,9 @@
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib import cm
 import numpy as np
 import plotly.graph_objs as go
 plt.axis('equal')
-
-
-def plot_predicted_depth_map(depth, image_size, img_idx=0, block=False):
-    x = np.arange(0, image_size, 1)
-    y = np.arange(0, image_size, 1)
-    X, Y = np.meshgrid(x, y)
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    ax.plot_surface(X, Y, depth[0, 0], cmap=cm.coolwarm,
-                    linewidth=0, antialiased=False)
-    plt.show(block=block)
 
 
 def plot_originals(image, block=False):
@@ -48,18 +39,23 @@ def plotly_3d_depth(recon_depth, texture=None):
 
 
 
-def plt_3d_depth(recon_depth, image_size, block=False):
-    depth = recon_depth[0]
+def plt_3d_depth(depth, image_size, block=False):
+    matplotlib.style.use('seaborn')
     x = np.arange(0, image_size, 1)
     y = np.arange(0, image_size, 1)
     X, Y = np.meshgrid(x, y)
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    ax.plot_surface(X, Y, depth.numpy(), cmap=cm.coolwarm,
-                    linewidth=0, antialiased=False)
-    plt.axis('off')
-    plt.title('3D depth')
-    plt.show(block=block)    
-    plt.savefig("results/plots/recon_3d_depth.png")
+    ax.plot_surface(X, Y, depth[0, 0], cmap=cm.coolwarm,
+                        linewidth=0, antialiased=False)
+    ax.view_init(-105,-90)
+    plt.show(block=block)
+
+def plot_predicted_depth_map(depth, image_size, img_idx=None, block=False, save=False, filename=""):
+    plt_3d_depth(depth, image_size)
+    if save:
+        im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
+        plt.savefig("results/plots/" + filename + im_nr_str +  ".png")
+    plt.close()
 
 
 def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage="", block=False):
@@ -75,6 +71,7 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
+    plt.close()
 
     depth = recon_depth[0]
     plt.imshow(depth, aspect='auto')
@@ -85,3 +82,14 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
+    plt.close()
+
+    plt_3d_depth(recon_depth.unsqueeze(0).numpy(), recon_depth.shape[-1])
+    plt.axis('off')
+    plt.title('Reconstructed depth map')
+    plt.show(block=block)
+    plt.savefig("results/plots/recon_3d_depth_" + im_idx + "_"
+                + total_it + "_it_"
+                + "stage_" + stage
+                + ".png")
+    plt.close()
