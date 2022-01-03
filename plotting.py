@@ -15,12 +15,12 @@ def plot_originals(image, block=False):
     plt.title('Original')
     plt.show(block=block)
 
-def plotly_3d_depth(recon_depth, texture=None):
+def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=None):
     depth = recon_depth[0].numpy()
     if texture is not None:
         tex = texture[0,0].numpy()
         # tex = np.flip(tex, axis=1)
-        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex)])
+        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex, cmin = 0)])
     else:
         fig = go.Figure(data=[go.Surface(z=-1*depth)])
     fig.update_layout(
@@ -33,8 +33,19 @@ def plotly_3d_depth(recon_depth, texture=None):
             up=dict(x=0.05, y=-1, z=1),
             center=dict(x=0, y=0, z=0),
             eye=dict(x=0, y=0, z=2)
-            )
+            ),
+        # scene_camera = dict(
+        #     up=dict(x=0.2, y=-1.5, z=1),
+        #     center=dict(x=0, y=0.125, z=0),
+        #     eye=dict(x=0, y=-0.5, z=1.8)
+        #     ),
+        margin=dict(l=1, r=1, t=1, b=1),
+        yaxis=dict(scaleanchor="x", scaleratio=1)
     )
+    fig.update_traces(showscale=False)
+    if save:
+        im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
+        fig.write_image("results/plots/plotly_" + filename + im_nr_str +  ".png")
     fig.show()
 
 

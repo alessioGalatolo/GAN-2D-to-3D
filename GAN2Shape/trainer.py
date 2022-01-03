@@ -31,6 +31,7 @@ class Trainer():
         self.category = model_config.get('category')
         self.n_proj_samples = model_config.get('n_proj_samples', 8)
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1000)
+        self.n_workers = model_config.get('n_workers', 0)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
         self.prior_name = model_config.get('prior_name', "box")
         self.plot_intermediate = plot_intermediate
@@ -63,7 +64,8 @@ class Trainer():
         # the original training is instance-based => batch size = 1
         dataloader = DataLoader(images_latents,
                                 batch_size=1,
-                                shuffle=shuffle)
+                                shuffle=shuffle,
+                                num_workers=self.n_workers)
         # Sequential training of the D,A,L,V nets
 
         # -----------------Main loop through all images------------------------
@@ -91,7 +93,7 @@ class Trainer():
                                                   + f"Step: {step}.")
                     current_collected = [None]*len(images_latents)
                     optim = getattr(self, f'optim_step{step}')
-                    for _ in range(stages[stage][f'step{step}']):
+                    for _ in tqdm(range(stages[stage][f'step{step}'])):
                         optim.zero_grad()
                         collected = old_collected[data_index]
 
@@ -293,7 +295,8 @@ class GeneralizingTrainer(Trainer):
         n_stages = len(stages)
         dataloader = DataLoader(images_latents,
                                 batch_size=batch_size,
-                                shuffle=shuffle)
+                                shuffle=shuffle,
+                                num_workers=self.n_workers)
 
         # -----------------Pretrain on all images------------------------
         data_iterator = tqdm(dataloader)

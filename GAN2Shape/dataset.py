@@ -13,7 +13,7 @@ class ImageDataset(Dataset):
         self.file_list = pd.read_csv(list_path, header=None)
         if subset is not None:
             try:
-                self.file_list = self.file_list.iloc[subset]
+                self.file_list = self.file_list.iloc[subset].reset_index(drop=True)
             except IndexError as e:
                 print(e, ": Invalid image subset indices specified \nExiting ...")
                 quit()
@@ -39,7 +39,7 @@ class LatentDataset(Dataset):
         self.file_list = pd.read_csv(list_path, header=None)
         if subset is not None:
             try:
-                self.file_list = self.file_list.iloc[subset]
+                self.file_list = self.file_list.iloc[subset].reset_index(drop=True)
             except IndexError as e:
                 print(e, ": Invalid image subset indices specified \nExiting ...")
                 quit()
