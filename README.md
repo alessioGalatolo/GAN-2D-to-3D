@@ -1,8 +1,34 @@
 # Unsupervised 3D shape retrieval from pre-trained GANs
 Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 
-<a href="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ad35fd5ef5f0adfd8e4e90dde2ff96c893f6d489/results/htmls/car0.html">
-  <img src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+## Interactive visualizations of the results
+Click on each image to find the respective 3D surface plot.
+
+### Results using the box prior
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car0.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car4.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+ 
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car5.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+ 
+ ### Results using the ellipsoid prior
+ 
+ <a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/0.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/4.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+ 
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/5.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
  </a>
 
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
