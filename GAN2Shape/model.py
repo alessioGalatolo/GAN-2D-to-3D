@@ -238,7 +238,7 @@ class GAN2Shape(nn.Module):
         masks[permutation]
         projected_samples, masks = projected_samples.cuda(), masks.cuda()
 
-        _, collected = self.forward_step1(images, None, None, step1=False)
+        step1_loss, collected = self.forward_step1(images, None, None, step1=False)
         normal, _, _, albedo, depth, _ = collected
 
         # --------- Extract View and Light from the projected sample ----------
@@ -280,8 +280,7 @@ class GAN2Shape(nn.Module):
         loss_perc_im = self.perceptual_loss(recon_im[:b] * recon_im_mask[:b],
                                             projected_samples * recon_im_mask[:b])
         loss_perc_im = torch.mean(loss_perc_im)
-        loss_smooth = self.smooth_loss(depth) + self.smooth_loss(diffuse_shading)
-        loss_total = loss_l1_im + self.lam_perc * loss_perc_im + self.lam_smooth * loss_smooth
+        loss_total = step1_loss + loss_l1_im + self.lam_perc * loss_perc_im
 
         return loss_total, None
 
