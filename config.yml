@@ -11,7 +11,7 @@ root_path: data/car
 learning_rate: 0.0001
 view_scale: 1
 refinement_iterations: 1
-n_proj_samples: 2
+n_proj_samples: 8
 batch_size: 2
 prior_name: smoothed_box
 
