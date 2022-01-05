@@ -14,7 +14,7 @@ refinement_iterations: 1
 n_proj_samples: 8
 batch_size: 2
 prior_name: smoothed_box
-
+image_subset: [4, 5]
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
