@@ -1,6 +1,12 @@
 import torch
 import torch.nn.functional as F
+from os import makedirs
 
+
+def create_results_folder():
+    makedirs('results/plots', exist_ok=True)
+    # Add more if necessary
+    
 
 def resize(image, size):
     dim = image.dim()

@@ -132,9 +132,10 @@ class Trainer():
 
         if plot_depth_map:
             plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
-            plot_predicted_depth_map(plt_prior, self.image_size, 
-                block=False, save=True, img_idx=i_batch.item(),
-                filename="prior")
+            plot_predicted_depth_map(plt_prior, self.image_size,
+                                     block=False, save=True,
+                                     img_idx=i_batch.item(),
+                                     filename="prior")
 
         iterator = tqdm(range(self.n_epochs_prior))
         for _ in iterator:

@@ -5,7 +5,7 @@ from torch import cuda
 from gan2shape.trainer import Trainer, GeneralizingTrainer
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageLatentDataset
-from plotting import plot_originals
+from gan2shape.utils import create_results_folder
 import logging
 import time
 
@@ -65,7 +65,7 @@ def main():
     logging.basicConfig(filename=args.LOG_FILE,
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         level=logging.INFO)
-
+    create_results_folder()
     # load/transform data
     transform = transforms.Compose(
             [
