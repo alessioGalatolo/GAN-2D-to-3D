@@ -146,3 +146,10 @@ neural_renderer
 wandb
 
 original_repo
+
+checkpoints
+results
+
+data
+
+configs
