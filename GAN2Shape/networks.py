@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gan2shape.resnet import resnet50, resnet101, resnet152
-import gan2shape.debug_grad_updates as alerter
+from GAN2Shape.resnet import resnet50, resnet101, resnet152
+import GAN2Shape.debug_grad_updates as alerter
 
 
 """

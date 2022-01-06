@@ -2,10 +2,10 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from gan2shape.trainer import Trainer, GeneralizingTrainer
-from gan2shape.model import GAN2Shape
-from gan2shape.dataset import ImageLatentDataset
-from gan2shape.utils import create_results_folder
+from GAN2Shape.trainer import Trainer, GeneralizingTrainer
+from GAN2Shape.model import GAN2Shape
+from GAN2Shape.dataset import ImageLatentDataset
+from GAN2Shape.utils import create_results_folder
 import logging
 import time
 

@@ -2,9 +2,9 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from gan2shape.model import GAN2Shape
-from gan2shape.dataset import ImageDataset, LatentDataset
-from gan2shape import utils
+from GAN2Shape.model import GAN2Shape
+from GAN2Shape.dataset import ImageDataset, LatentDataset
+from GAN2Shape import utils
 import numpy as np
 from plotting import *
 

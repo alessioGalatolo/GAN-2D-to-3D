@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from plotting import plot_predicted_depth_map, plot_reconstructions
-from gan2shape import utils
+from GAN2Shape import utils
 try:
     import wandb
 except ImportError:
