@@ -4,7 +4,7 @@ from torchvision import transforms
 from torch import cuda
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageDataset, LatentDataset
-from gan2shape.utils import create_results_folder
+from gan2shape import utils
 from plotting import *
 
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
         print("A CUDA-enables GPU is required to run this model")
         exit(1)
 
-    create_results_folder()
+    utils.create_results_folder()
     transform = transforms.Compose(
             [
                 transforms.Resize(config.get('image_size')),
