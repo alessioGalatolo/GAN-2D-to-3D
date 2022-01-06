@@ -26,7 +26,6 @@ class ImageDataset(Dataset):
         with Image.open(img_path) as image:
             if self.transform is not None:
                 image = self.transform(image)
-            # image = image[None, :]
             image = image * 2 - 1
             return image
 
@@ -41,7 +40,7 @@ class LatentDataset(Dataset):
             try:
                 self.file_list = self.file_list.iloc[subset].reset_index(drop=True)
             except IndexError as e:
-                print(e, ": Invalid image subset indices specified \nExiting ...")
+                print(e, ": Invalid image subset indices specified \nExiting...")
                 quit()
 
     def __len__(self):
@@ -60,8 +59,12 @@ class LatentDataset(Dataset):
 class ImageLatentDataset(Dataset):
     def __init__(self, root_dir, list_filename='list.txt',
                  transform=None, latent_folder='latents', subset=None):
-        self.image_dataset = ImageDataset(root_dir, list_filename, transform, subset)
-        self.latent_dataset = LatentDataset(root_dir, list_filename, latent_folder, subset)
+        try:
+            self.image_dataset = ImageDataset(root_dir, list_filename, transform, subset)
+            self.latent_dataset = LatentDataset(root_dir, list_filename, latent_folder, subset)
+        except FileNotFoundError as error:
+            print(error, "\nDid you forget to run download_data.py?\n Exiting...")
+            exit(1)
         assert len(self.image_dataset) == len(self.latent_dataset)
 
     def __len__(self):

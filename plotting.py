@@ -15,12 +15,13 @@ def plot_originals(image, block=False):
     plt.title('Original')
     plt.show(block=block)
 
+
 def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=None):
     depth = recon_depth[0].numpy()
     if texture is not None:
-        tex = texture[0,0].numpy()
+        tex = texture[0, 0].numpy()
         # tex = np.flip(tex, axis=1)
-        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex, cmin = 0)])
+        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex, cmin=0)])
     else:
         fig = go.Figure(data=[go.Surface(z=-1*depth)])
     fig.update_layout(
@@ -29,7 +30,7 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
             yaxis=dict(showticklabels=False),
             zaxis=dict(showticklabels=False),
             ),
-        scene_camera = dict(
+        scene_camera=dict(
             up=dict(x=0.05, y=-1, z=1),
             center=dict(x=0, y=0, z=0),
             eye=dict(x=0, y=0, z=2)
@@ -45,9 +46,8 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
     fig.update_traces(showscale=False)
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
-        fig.write_image("results/plots/plotly_" + filename + im_nr_str +  ".png")
+        fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
     fig.show()
-
 
 
 def plt_3d_depth(depth, image_size, block=False):
@@ -57,9 +57,10 @@ def plt_3d_depth(depth, image_size, block=False):
     X, Y = np.meshgrid(x, y)
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     ax.plot_surface(X, Y, depth[0, 0], cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False)
-    ax.view_init(-105,-90)
+                    linewidth=0, antialiased=False)
+    ax.view_init(-105, -90)
     plt.show(block=block)
+
 
 def plot_predicted_depth_map(depth, image_size, img_idx=None, block=False, save=False, filename=""):
     plt_3d_depth(depth, image_size)
