@@ -16,7 +16,7 @@ def plot_originals(image, block=False):
     plt.show(block=block)
 
 
-def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=None):
+def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=None, show=True):
     depth = recon_depth[0].numpy()
     if texture is not None:
         tex = texture[0, 0].numpy()
@@ -48,7 +48,8 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
         fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
         fig.write_html("results/htmls/plotly_" + filename + im_nr_str + ".html")
-    fig.show()
+    if show:
+        fig.show()
 
 
 def plt_3d_depth(depth, image_size, block=False):

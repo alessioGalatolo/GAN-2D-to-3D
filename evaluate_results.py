@@ -66,4 +66,4 @@ if __name__ == '__main__':
 
         recon_depth[0, mask[0, 0] != 7] = np.NaN
 
-        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True)
+        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True, show=False)
