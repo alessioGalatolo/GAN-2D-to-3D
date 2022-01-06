@@ -60,15 +60,26 @@ python setup.py install
 ```
 # Install all other dependencies
 conda install numpy pandas distributed ipython lmdb matplotlib Pillow scipy tqdm scikit-image
-conda install wandb PyYAML -c conda-forge
+conda install PyYAML -c conda-forge
+conda install wandb -c conda-forge  # optional
+conda install -y -c anaconda ipykernel ipython_genutils  # only needed if running on notebook
+pip install plotly  # only needed for evaluating results
 ```
+
+## Install instruction for Windows
+The procedure is the same except for the installing the neural renderer that will not work out of the box on windows.
+Please see our guide [here](https://github.com/alessioGalatolo/GAN-2D-to-3D/tree/nr-windows-instructions) for a procedure that might work for installing the neural renderer on Windows.
 
 ## How to run:
 First you need to download the various datasets:
 ```sh
 python download_data.py
+python main.py --save-ckpts
 ```
-Then, simply run the main.py
+To evaluate the results:
+```
+python evaluate_results.py
+```
 
 # Todo-list
 - ~~Add saving of models/checkpoints~~
@@ -77,15 +88,15 @@ Then, simply run the main.py
   - ~~Fix support for 100 projected samples of the same image (and implement batches for these too)~~
 - ~~Fix ellipsoid/mask_net~~
 - ~~Add proper logging~~
-- Make good looking graphs
-- Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)
+- ~~Make good looking graphs~~
+- ~~Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)~~
 - Add plots/anims for multiple viewpoints and light? 
   (I think we need to construct a function which samples from an "interpolation" between two viewpoints and not randomly)
 - ~~Refactor code - there is currently a lot of unnecessary repetition~~
-- Experiment with new priors (improve box + maybe something else?)?
+- ~~Experiment with new priors (improve box + maybe something else?)?~~
 - Experiment with loss/regularization?
 - Training
-  - LSUN Car (replication)
+  - ~~LSUN Car (replication)~~
   - LSUN Horse (replication)
   - LSUN Bus (extension)
   - LSUN Sheep (extension)
