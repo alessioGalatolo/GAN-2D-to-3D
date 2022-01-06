@@ -1,8 +1,8 @@
 n_workers: 0
 n_epochs_generalized: 10
 n_epochs_prior: 1000
-gan_size: 512
-channel_multiplier: 2
+gan_size: 256
+channel_multiplier: 1
 image_size: 128
 z_dim: 512
 category: cat
