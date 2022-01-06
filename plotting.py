@@ -47,6 +47,7 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
         fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
+        fig.write_html("results/htmls/plotly_" + filename + im_nr_str + ".html")
     fig.show()
 
 

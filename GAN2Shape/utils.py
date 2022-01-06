@@ -5,8 +5,9 @@ from os import makedirs
 
 def create_results_folder():
     makedirs('results/plots', exist_ok=True)
+    makedirs('results/htmls', exist_ok=True)
     # Add more if necessary
-    
+
 
 def resize(image, size):
     dim = image.dim()

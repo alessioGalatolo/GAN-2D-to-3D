@@ -15,7 +15,7 @@ class ImageDataset(Dataset):
             try:
                 self.file_list = self.file_list.iloc[subset].reset_index(drop=True)
             except IndexError as e:
-                print(e, ": Invalid image subset indices specified \nExiting ...")
+                print(e, ": Invalid image subset indices specified \nExiting...")
                 quit()
 
     def __len__(self):
