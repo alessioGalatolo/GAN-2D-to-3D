@@ -116,20 +116,13 @@ class Trainer():
                 recon_im, recon_depth = self.model.evaluate_results(image)
                 recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
                 plot_reconstructions(recon_im, recon_depth,
-                                        total_it=str(total_it),
-                                        im_idx=str(data_index.item()),
-                                        stage=str(stage))
+                                     total_it=str(total_it),
+                                     im_idx=str(data_index.item()),
+                                     stage=str(stage))
 
             if self.save_ckpts:
                 self.model.save_checkpoint(data_index, stage, total_it, self.category)
         logging.info('Finished Training')
-
-    def load_model_checkpoint(self, load_dict):
-        self.model.load_from_checkpoint(load_dict['base_path'],
-                                        load_dict['category'],
-                                        load_dict['stage'],
-                                        load_dict['iteration'],
-                                        load_dict['time'])
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])

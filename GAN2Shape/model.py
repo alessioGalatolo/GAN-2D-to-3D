@@ -16,6 +16,8 @@ from gan2shape.losses import PerceptualLoss, PhotometricLoss, DiscriminatorLoss,
 
 
 class GAN2Shape(nn.Module):
+    NETS = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
+
     def __init__(self, config, debug=False):
         super().__init__()
         self.z_dim = config.get('z_dim')
@@ -389,7 +391,7 @@ class GAN2Shape(nn.Module):
 
     def save_checkpoint(self, img_idx, stage, total_it, category='car'):
         try:
-            nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
+            nets = GAN2Shape.NETS
             now = datetime.datetime.now()
             now = now.strftime("%Y_%m_%d_%H_%M")  # descending order for sorting
             for net in nets:
@@ -412,23 +414,36 @@ class GAN2Shape(nn.Module):
             logging.error("Error: ", e)
             logging.error(">>>Saving failed... continuing training<<<")
 
-    def load_from_checkpoint(self, path_base, category, stage='*', it='*', time='*'):
-        nets = ['lighting', 'viewpoint', 'depth', 'albedo', 'offset_encoder']
+    def load_from_checkpoints(self, path_base, category):
+        paths, indices = self.build_checkpoint_path(path_base, category)
+        for path, img_idx in zip(paths, indices):
+            self.load_from_checkpoint(path)
+            yield img_idx
+
+    def load_from_checkpoint(self, filename_path):
+        nets = GAN2Shape.NETS
         device = torch.device('cuda')
         for net in nets:
-            filename = self.build_checkpoint_path(path_base, category, net,
-                                                  stage, it, time)
+            filename = filename_path(net)
             with open(filename, 'rb') as f:
                 checkpoint = torch.load(f, map_location=device)
             getattr(self, f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
 
-    def build_checkpoint_path(self, base, category, net, img_idx, stage='*', it='*', time='*'):
-        path = f'{base}/{category}/{net}_image_{img_idx}_stage_{stage}_{it}_it_{time}.pth'
-        if stage == '*' or it == '*' or time == '*':
-            # look for checkpoints
-            possible_paths = glob(path)
-            path = possible_paths[-1]
-        return path
+    def build_checkpoint_path(self, base, category):
+        net = GAN2Shape.NETS[0]
+        path = f'{base}/{category}/{net}_image_*_stage_*_*_it_*.pth'
+        # look for checkpoints
+        possible_paths = glob(path)
+        assert possible_paths
+        paths = []
+        img_ids = []
+        for path in possible_paths:
+            splits = path.split(net)
+            paths.append(lambda x: splits[0]+x+splits[1])
+            words = path.split('_')
+            image_index = words.index('image')
+            img_ids.append(int(words[image_index+1]))
+        return paths, img_ids
 
 
 class ViewLightSampler():

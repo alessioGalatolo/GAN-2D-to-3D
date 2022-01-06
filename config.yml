@@ -20,7 +20,7 @@ view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
 
 our_nets_ckpts:
-  VLADE_nets: checkpoints/our_nets/
+  VLADE_nets: checkpoints/our_nets
   other: '?'
 
 ## renderer
