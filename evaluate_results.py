@@ -5,6 +5,7 @@ from torch import cuda
 from gan2shape.model import GAN2Shape
 from gan2shape.dataset import ImageDataset, LatentDataset
 from gan2shape import utils
+import numpy as np
 from plotting import *
 
 
@@ -35,7 +36,6 @@ if __name__ == '__main__':
 
     config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform)
-    latents = LatentDataset(config.get('root_path'))
     model = GAN2Shape(config)
 
     category = config.get('category')
@@ -46,10 +46,9 @@ if __name__ == '__main__':
 
     for img_idx in model.load_from_checkpoints(base_path, category):
         img1 = images[img_idx].unsqueeze(0)
-
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-        # plot_originals(images[img_idx], block=True)
+        # plot_originals(images[img_idx].unsqueeze(0), block=True)
         # plot_reconstructions(recon_im, recon_depth, block=True)
 
         size = 473
@@ -66,4 +65,5 @@ if __name__ == '__main__':
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
         recon_depth[0, mask[0, 0] != 7] = np.NaN
-        plotly_3d_depth(recon_depth, recon_im, img_idx=img_idx, save=True)
+
+        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True)

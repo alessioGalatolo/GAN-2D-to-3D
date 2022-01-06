@@ -439,7 +439,9 @@ class GAN2Shape(nn.Module):
         img_ids = []
         for path in possible_paths:
             splits = path.split(net)
-            paths.append(lambda x: splits[0]+x+splits[1])
+            beginning = splits[0]
+            end = splits[1]
+            paths.append(lambda x, b=beginning, e=end: f'{b}{x}{e}')
             words = path.split('_')
             image_index = words.index('image')
             img_ids.append(int(words[image_index+1]))
