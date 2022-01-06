@@ -66,7 +66,7 @@ conda install wandb PyYAML -c conda-forge
 ## How to run:
 First you need to download the various datasets:
 ```sh
-./download.sh
+python download_data.py
 ```
 Then, simply run the main.py
 
