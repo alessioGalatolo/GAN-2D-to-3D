@@ -158,7 +158,7 @@ class Trainer():
         return train_loss
 
     def prior_shape(self, image, shape="box"):
-        #FIXME: should probably move to its own file since its getting long
+        # FIXME: should probably move to its own file since its getting long
         with torch.no_grad():
             height, width = self.image_size, self.image_size
             center_x, center_y = int(width / 2), int(height / 2)
@@ -198,23 +198,26 @@ class Trainer():
                 mask = (mask - noise_treshold) / (1 - noise_treshold)
 
                 prior = far - prior * mask
-                
-                #Smoothing through repeated convolution
+
+                # Smoothing through repeated convolution
                 kernel_size = 11
                 pad = 5
                 n_convs = 3
-                conv = torch.nn.Conv2d(in_channels=1,out_channels=1, kernel_size=kernel_size, stride=1, padding=0)
-                filt = torch.ones(1,1, kernel_size, kernel_size)
+                conv = torch.nn.Conv2d(in_channels=1, out_channels=1,
+                                       kernel_size=kernel_size, stride=1,
+                                       padding=0)
+                filt = torch.ones(1, 1, kernel_size, kernel_size)
                 filt = filt / torch.norm(filt)
                 conv.weight = torch.nn.Parameter(filt)
                 prior = prior.unsqueeze(0)
                 for i in range(n_convs):
                     prior = conv(prior)
                     # Rescale depth values to appropriate range
-                    prior = near + ((prior - torch.min(prior))*(far - near)) / (torch.max(prior) - torch.min(prior))
+                    prior = near + ((prior - torch.min(prior))*(far - near))\
+                        / (torch.max(prior) - torch.min(prior))
                     # Pad result with 'far' to keep the image size
-                    prior = torch.nn.functional.pad(prior,tuple([pad]*4), value=far)
-                        
+                    prior = torch.nn.functional.pad(prior, tuple([pad]*4), value=far)
+
                 return prior.squeeze(0).cuda()
 
             elif shape == "ellipsoid":
@@ -360,7 +363,10 @@ class GeneralizingTrainer(Trainer):
                         collected = step1_collected[index]
 
                         # step 2
-                        loss_step2, collected = self.model.forward_step2(image, latent, collected, self.n_proj_samples)
+                        loss_step2, collected = self.model.forward_step2(image,
+                                                                         latent,
+                                                                         collected,
+                                                                         self.n_proj_samples)
 
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)

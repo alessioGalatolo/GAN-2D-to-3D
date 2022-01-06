@@ -1,7 +1,6 @@
 import math
 from glob import glob
 import logging
-import numpy as np
 import datetime
 import os
 import torch

@@ -3,7 +3,7 @@ import yaml
 from torchvision import transforms
 from torch import cuda
 from GAN2Shape.model import GAN2Shape
-from GAN2Shape.dataset import ImageDataset, LatentDataset
+from GAN2Shape.dataset import ImageDataset
 from GAN2Shape import utils
 import numpy as np
 from plotting import *

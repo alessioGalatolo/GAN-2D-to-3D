@@ -209,7 +209,8 @@ class OffsetEncoder(nn.Module):
         self.alert_func = alerter.AlertOffsetEncoder()
 
         network_part1 = [
-            # the GAN2Shape repo had 1*nf out channels here but that isn't consistent with table 7 if nf=16
+            # the GAN2Shape repo had 1*nf out channels here but
+            # that isn't consistent with table 7 if nf=16
             nn.Conv2d(cin, 2*nf, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             ResBlock(2*nf, 4*nf),
