@@ -96,7 +96,7 @@ class GAN2Shape(nn.Module):
         depth = depth_raw - depth_raw.view(1, 1, -1).mean(2).view(1, 1, 1, 1)
         depth = depth.tanh()
         depth = self.rescale_depth(depth)
-        return F.mse_loss(depth[0], prior.detach()), depth
+        return F.mse_loss(depth[0], prior.detach().expand(depth.size(1), -1, -1)), depth
 
     def forward_step1(self, images, latents, collected, step1=True, eval=False, **kwargs):
         b = 1
@@ -428,7 +428,10 @@ class GAN2Shape(nn.Module):
                 checkpoint = torch.load(f, map_location=device)
             getattr(self, f'{net}_net').load_state_dict(checkpoint['model_state_dict'])
 
-    def build_checkpoint_path(self, base, category):
+    def build_checkpoint_path(self, base, category, net=None,
+                              img_idx="*", stage="*", total_it="*", time="*"):
+        if net is not None:
+            return f'{base}/{category}/{net}_image_{img_idx}_stage_{stage}_{total_it}_it_{time}.pth'
         net = GAN2Shape.NETS[0]
         path = f'{base}/{category}/{net}_image_*_stage_*_*_it_*.pth'
         # look for checkpoints

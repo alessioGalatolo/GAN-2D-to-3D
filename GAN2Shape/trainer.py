@@ -52,7 +52,7 @@ class Trainer():
 
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
-            shuffle=False):
+            shuffle=False, **kwargs):
 
         # continue previously started training
         if load_dict is not None:
@@ -306,6 +306,7 @@ class GeneralizingTrainer(Trainer):
                 self.pretrain_on_prior(images, data_indices, plot_depth_map)
 
         # -----------------Loop through all stages-------------------------
+        data_iterator = tqdm(dataloader)
         for stage in range(n_stages):
             # -----------------------------Step 1--------------------------
             if self.debug:
@@ -326,6 +327,8 @@ class GeneralizingTrainer(Trainer):
                     loss, collected = self.model.forward_step1(images, latents, None)
 
                     normals, lights_a, lights_b, albedos, depths, canon_masks = collected
+                    if type(canon_masks) is not list:
+                        canon_masks = [canon_masks]
                     for collected_index, data_index in enumerate(data_indices):
                         step1_collected[data_index] = (normals[collected_index:collected_index+1],
                                                        lights_a[collected_index:collected_index+1],
