@@ -104,6 +104,9 @@ def main():
 
     if args.GENERALIZE:
         trainer = GeneralizingTrainer(**trainer_config)
+        if 'image_subset' in config:
+            print(">>> Warning, using a subset with a generalizing trainer.")
+            print("It is always better to use the whole dataset.<<<")
     else:
         trainer = Trainer(**trainer_config)
 
