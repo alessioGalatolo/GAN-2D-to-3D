@@ -282,6 +282,14 @@ class Trainer():
 class GeneralizingTrainer(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
+    def __init__(self, model, model_config, debug=False, plot_intermediate=False,
+                 log_wandb=False, save_ckpts=False, load_dict=None):
+        super().__init__(model, model_config, debug=debug,
+                         plot_intermediate=plot_intermediate,
+                         log_wandb=log_wandb, save_ckpts=save_ckpts,
+                         load_dict=load_dict)
+        self.n_epochs = model_config.get('n_epochs_generalized', 1)
+
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             batch_size=2, shuffle=False):
@@ -305,20 +313,20 @@ class GeneralizingTrainer(Trainer):
                 # Pretrain depth net on the prior shape
                 self.pretrain_on_prior(images, data_indices, plot_depth_map)
 
-        # -----------------Loop through all stages-------------------------
-        data_iterator = tqdm(dataloader)
-        for stage in range(n_stages):
+        # -----------------Loop through all epochs-------------------------
+        data_iterator = tqdm(range(self.n_epochs))
+        for epoch in data_iterator:
             # -----------------------------Step 1--------------------------
             if self.debug:
-                logging.info(f"Doing step 1, stage {stage + 1}/{n_stages}")
-            data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                logging.info(f"Doing step 1, epoch {epoch + 1}/{self.n_epochs}")
+            data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
                                           + f"Image: {data_indices+1}/{len(images_latents)}."
                                           + "Step: 1.")
             step1_collected = [None]*len(images_latents)
             optim = self.optim_step1
-            for _ in range(stages[stage]['step1']):
+            for _ in range(stages[0]['step1']):
                 # -----------------Loop through all images-----------------
-                for batch in data_iterator:
+                for batch in tqdm(dataloader):
                     images, latents, data_indices = batch
                     images, latents = images.cuda(), latents.cuda()
 
@@ -341,18 +349,18 @@ class GeneralizingTrainer(Trainer):
                     total_it += 1
 
                     if self.log_wandb:
-                        wandb.log({"stage": stage,
+                        wandb.log({"epoch": epoch,
                                    "total_it": total_it,
                                    "loss_step1": loss,
                                    "image_num": data_indices})
             # -----------------------------Step 2 and 3------------------------
             if self.debug:
-                logging.info(f"Doing step 3, stage {stage + 1}/{n_stages}")
-            data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                logging.info(f"Doing step 3, epoch {epoch + 1}/{self.n_epochs}")
+            data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
                                           + f"Image: {data_indices+1}/{len(images_latents)}."
                                           + "Step: 3.")
-            for _ in range(stages[stage]['step2']):
-                for batch in data_iterator:
+            for _ in range(stages[0]['step2']):
+                for batch in tqdm(dataloader):
                     images, latents, data_indices = batch
                     images, latents = images.cuda(), latents.cuda()
 
@@ -381,7 +389,7 @@ class GeneralizingTrainer(Trainer):
                         total_it += 1
 
                         if self.log_wandb:
-                            wandb.log({"stage": stage,
+                            wandb.log({"epoch": epoch,
                                        "total_it": total_it,
                                        "loss_step2": loss_step2,
                                        "loss_step3": loss_step3,
@@ -394,8 +402,8 @@ class GeneralizingTrainer(Trainer):
                     plot_reconstructions(recon_im, recon_depth,
                                          total_it=str(total_it),
                                          im_idx=str(index),
-                                         stage=str(stage))
+                                         epoch=str(epoch))
 
         if self.save_ckpts:
-            self.model.save_checkpoint(data_indices, stage, total_it, self.category)
+            self.model.save_checkpoint(data_indices, epoch, total_it, self.category)
         logging.info('Finished Training')
