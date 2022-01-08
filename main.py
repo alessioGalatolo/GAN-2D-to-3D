@@ -2,7 +2,7 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from GAN2Shape.trainer import Trainer, GeneralizingTrainer
+from GAN2Shape.trainer import Trainer, GeneralizingTrainer, GeneralizingTrainer2
 from GAN2Shape.model import GAN2Shape
 from GAN2Shape.dataset import ImageLatentDataset
 from GAN2Shape.utils import create_results_folder
@@ -103,7 +103,7 @@ def main():
     }
 
     if args.GENERALIZE:
-        trainer = GeneralizingTrainer(**trainer_config)
+        trainer = GeneralizingTrainer2(**trainer_config)
         if 'image_subset' in config:
             print(">>> Warning, using a subset with a generalizing trainer.")
             print("It is always better to use the whole dataset.<<<")
