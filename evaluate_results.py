@@ -18,6 +18,11 @@ if __name__ == '__main__':
                         dest='CONFIG',
                         default='config.yml',
                         help='path of the config yaml file')
+    parser.add_argument('--generalize',
+                        dest='GENERALIZE',
+                        action='store_true',
+                        default=False,
+                        help='If to run training procedure that favors generalization')
     args = parser.parse_args()
     # read configuration
     with open(args.CONFIG, 'r') as config_file:
@@ -33,10 +38,10 @@ if __name__ == '__main__':
                 transforms.ToTensor()
             ]
         )
-
+    subset=config.get('image_subset', None)
     config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform, 
-                                subset=config.get('image_subset', None))
+                                subset=subset)
     model = GAN2Shape(config)
 
     category = config.get('category')
@@ -51,7 +56,20 @@ if __name__ == '__main__':
                   'sheep', 'sofa', 'train', 'tvmonitor']
     CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
 
-    for img_idx in model.load_from_checkpoints(base_path, category):
+    if not args.GENERALIZE:
+        generator = model.load_from_checkpoints(base_path, category)
+        if subset is not None:
+            print('>>> Warning: Evaluating the instance-specific model with subset is probably not what you want.')
+    else:
+        print('>>> Using general model for all predictions')
+        if subset is None:
+            print('>>> Error: Subset must be specified for the general model. Exiting ...')
+            quit()
+        paths, _ = model.build_checkpoint_path(base_path, category, general=args.GENERALIZE)
+        model.load_from_checkpoint(paths[-1])
+        generator = np.arange(len(subset))
+
+    for img_idx in generator:
         img1 = images[img_idx].unsqueeze(0)
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
@@ -73,4 +91,6 @@ if __name__ == '__main__':
 
         recon_depth[0, mask[0, 0] != CATEGORY2NUMBER[category]] = np.NaN
 
+        if args.GENERALIZE:
+            img_idx = subset[img_idx]
         plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True, show=False)
