@@ -509,6 +509,10 @@ class GeneralizingTrainer2(Trainer):
                                                                             depth.cuda(), 
                                                                             canon_mask)
                     step1_collected_batch = normal, light_a, light_b, albedo, depth, canon_mask
+
+                    data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + "Step: 2.")
                     for _ in tqdm(range(stages[0]['step2'])):
                         self.optim_step2.zero_grad()
                         # step 2
@@ -530,7 +534,8 @@ class GeneralizingTrainer2(Trainer):
                         loss_step3.backward()                        
                         self.optim_step3.step()
                         total_it += 1
-
+                        
+                    torch.cuda.empty_cache()
                     if self.log_wandb:
                         wandb.log({"epoch": epoch,
                                     "total_it": total_it,
