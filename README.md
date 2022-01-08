@@ -5,6 +5,11 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 Click on each image to find the respective 3D surface plot.
 
 ### Results using the box prior
+
+<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/html-stuff/cat_smooth_box_htmls/plotly__im_0.html">
+  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
+ </a>
+ 
 <a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car0.html">
   <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
  </a>
