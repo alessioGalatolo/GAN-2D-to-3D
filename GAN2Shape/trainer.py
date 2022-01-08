@@ -480,7 +480,6 @@ class GeneralizingTrainer2(Trainer):
                                                        albedos[batch_index].unsqueeze(0).cpu(),
                                                        depths[batch_index].unsqueeze(0).cpu(),
                                                        canon_masks[batch_index])
-                del normals, lights_a, lights_b, albedos, depths, canon_masks
 
                 if self.log_wandb:
                     wandb.log({"epoch": epoch,
