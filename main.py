@@ -107,7 +107,7 @@ def main():
         # the original method totals = [{'step1': 1300, 'step2': 2200, 'step3': 1800}]
         # hence the choice of the below setting for n_epochs = 100
         stages = [{'step1': 13, 'step2': 22, 'step3': 18}]
-        stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
+        # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
         if 'image_subset' in config:
             print(">>> Warning, using a subset with a generalizing trainer.")
             print("It is always better to use the whole dataset.<<<")        
