@@ -35,7 +35,8 @@ if __name__ == '__main__':
         )
 
     config['transform'] = transform
-    images = ImageDataset(config.get('root_path'), transform=transform)
+    images = ImageDataset(config.get('root_path'), transform=transform, 
+                                subset=config.get('image_subset', None))
     model = GAN2Shape(config)
 
     category = config.get('category')
