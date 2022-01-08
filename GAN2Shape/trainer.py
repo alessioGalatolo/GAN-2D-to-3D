@@ -453,7 +453,7 @@ class GeneralizingTrainer2(Trainer):
             
             optim = self.optim_step1
             # -----------------Loop through all images-----------------
-            for i_b, batch in tqdm(enumerate(dataloader)):
+            for i_b, batch in enumerate(dataloader):
                 data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
                                           + f"Batch: {i_b+1}/{len(dataloader)}."
                                           + "Step: 1.")
@@ -462,7 +462,7 @@ class GeneralizingTrainer2(Trainer):
                 step1_collected = [None] * images.shape[0]
 
                 images, latents = images.cuda(), latents.cuda()
-                for _ in tqdm(range(stages[0]['step1'])):
+                for _ in range(stages[0]['step1']):
                     optim.zero_grad()
 
                     loss, collected = self.model.forward_step1(images, latents, None)
@@ -490,9 +490,7 @@ class GeneralizingTrainer2(Trainer):
                 # -----------------------------Step 2 and 3------------------------
                 if self.debug:
                     logging.info(f"Doing step 3, epoch {epoch + 1}/{self.n_epochs}")
-                data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}."
-                                          + "Step: 2.")
+                
                 # Free up GPU memory
                 images, latents = images.cpu(), latents.cpu()
                 torch.cuda.empty_cache()
@@ -511,9 +509,10 @@ class GeneralizingTrainer2(Trainer):
                     step1_collected_batch = normal, light_a, light_b, albedo, depth, canon_mask
 
                     data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                          + f"Sub-batch: {batch_index+1}/{len(images)}. "
                                           + "Step: 2.")
-                    for _ in tqdm(range(stages[0]['step2'])):
+                    for _ in range(stages[0]['step2']):
                         self.optim_step2.zero_grad()
                         # step 2
                         loss_step2, collected = self.model.forward_step2(image,
@@ -525,16 +524,17 @@ class GeneralizingTrainer2(Trainer):
                         total_it += 1
 
                     data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                          + f"Sub-batch: {batch_index+1}/{len(images)}. "
                                           + "Step: 3.")
-                    for _ in tqdm(range(stages[0]['step3'])):
+                    for _ in range(stages[0]['step3']):
                         self.optim_step3.zero_grad()
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)
                         loss_step3.backward()                        
                         self.optim_step3.step()
                         total_it += 1
-                        
+
                     torch.cuda.empty_cache()
                     if self.log_wandb:
                         wandb.log({"epoch": epoch,
