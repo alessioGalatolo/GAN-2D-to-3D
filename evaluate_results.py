@@ -44,6 +44,12 @@ if __name__ == '__main__':
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
 
+    CATEGORIES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
+                  'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
+                  'horse', 'motorbike', 'person', 'pottedplant',
+                  'sheep', 'sofa', 'train', 'tvmonitor']
+    CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
+
     for img_idx in model.load_from_checkpoints(base_path, category):
         img1 = images[img_idx].unsqueeze(0)
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
@@ -64,6 +70,6 @@ if __name__ == '__main__':
         mask = out.float()
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
-        recon_depth[0, mask[0, 0] != 7] = np.NaN
+        recon_depth[0, mask[0, 0] != CATEGORY2NUMBER[category]] = np.NaN
 
         plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True, show=False)
