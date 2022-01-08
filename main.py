@@ -104,16 +104,21 @@ def main():
 
     if args.GENERALIZE:
         trainer = GeneralizingTrainer2(**trainer_config)
+        # the original method totals = [{'step1': 1300, 'step2': 2200, 'step3': 1800}]
+        # hence the choice of the below setting for n_epochs = 100
+        stages = [{'step1': 13, 'step2': 22, 'step3': 18}]
         if 'image_subset' in config:
             print(">>> Warning, using a subset with a generalizing trainer.")
-            print("It is always better to use the whole dataset.<<<")
+            print("It is always better to use the whole dataset.<<<")        
     else:
         trainer = Trainer(**trainer_config)
+        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
+                    {'step1': 200, 'step2': 500, 'step3': 400},
+                    {'step1': 200, 'step2': 500, 'step3': 400},
+                    {'step1': 200, 'step2': 500, 'step3': 400}]
 
-    stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-              {'step1': 200, 'step2': 500, 'step3': 400},
-              {'step1': 200, 'step2': 500, 'step3': 400},
-              {'step1': 200, 'step2': 500, 'step3': 400}]
+    
+    
 
     trainer.fit(images_latents, stages=stages, batch_size=config.get('batch_size', 2))
     return

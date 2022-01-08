@@ -38,8 +38,6 @@ class Trainer():
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
-        if load_dict is not None:
-            self.load_model_checkpoint(load_dict)
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
         self.optim_step2 = Trainer.default_optimizer([self.model.offset_encoder_net],
@@ -50,13 +48,16 @@ class Trainer():
                                                       self.model.albedo_net],
                                                      lr=self.learning_rate)
 
-    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
+        self.load_dict = load_dict
+        if load_dict is not None:
+            paths, _ = self.model.build_checkpoint_path(load_dict['base_path'], load_dict['category'], general=True)
+            self.model.load_from_checkpoint(paths[-1])
+
+    def fit(self, images_latents, plot_depth_map=False, 
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             shuffle=False, **kwargs):
 
         # continue previously started training
-        if load_dict is not None:
-            self.load_model_checkpoint(load_dict)
 
         total_it = 0
         n_stages = len(stages)
@@ -77,7 +78,8 @@ class Trainer():
 
             if not self.debug:
                 # Pretrain depth net on the prior shape
-                self.pretrain_on_prior(image, data_index, plot_depth_map)
+                if self.load_dict is None:
+                    self.pretrain_on_prior(image, data_index, plot_depth_map)
 
             # -----------------Loop through all stages-------------------------
             for stage in range(n_stages):
@@ -123,6 +125,7 @@ class Trainer():
             if self.save_ckpts:
                 self.model.save_checkpoint(data_index, stage, total_it, self.category)
         logging.info('Finished Training')
+
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
@@ -285,7 +288,7 @@ class GeneralizingTrainer(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
     def __init__(self, model, model_config, debug=False, plot_intermediate=False,
-                 log_wandb=False, save_ckpts=False, load_dict=None):
+                 log_wandb=False, save_ckpts=False):
         super().__init__(model, model_config, debug=debug,
                          plot_intermediate=plot_intermediate,
                          log_wandb=log_wandb, save_ckpts=save_ckpts,
@@ -295,8 +298,6 @@ class GeneralizingTrainer(Trainer):
     def fit(self, images_latents, plot_depth_map=False, load_dict=None,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             batch_size=2, shuffle=False):
-        if load_dict is not None:
-            self.load_model_checkpoint(load_dict)
 
         total_it = 0
         n_stages = len(stages)
@@ -421,11 +422,9 @@ class GeneralizingTrainer2(Trainer):
                          load_dict=load_dict)
         self.n_epochs = model_config.get('n_epochs_generalized', 1)
 
-    def fit(self, images_latents, plot_depth_map=False, load_dict=None,
+    def fit(self, images_latents, plot_depth_map=False,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             batch_size=2, shuffle=False):
-        if load_dict is not None:
-            self.load_model_checkpoint(load_dict)
 
         total_it = 0
         n_stages = len(stages)
@@ -442,7 +441,8 @@ class GeneralizingTrainer2(Trainer):
         # -----------------Pretrain on all images------------------------
         data_iterator = tqdm(dataloader)
         # Pretrain depth net on the prior shape
-        self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
+        if self.load_dict is None:
+            self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
 
         # -----------------Loop through all epochs-------------------------
         data_iterator = tqdm(range(self.n_epochs))
@@ -450,17 +450,19 @@ class GeneralizingTrainer2(Trainer):
             # -----------------------------Step 1--------------------------
             if self.debug:
                 logging.info(f"Doing step 1, epoch {epoch + 1}/{self.n_epochs}")
-            data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Image: {data_indices+1}/{len(images_latents)}."
-                                          + "Step: 1.")
-            step1_collected = [None]*len(images_latents)
+            
             optim = self.optim_step1
-            for _ in range(stages[0]['step1']):
-                # -----------------Loop through all images-----------------
-                for batch in tqdm(dataloader):
-                    images, latents, data_indices = batch
-                    images, latents = images.cuda(), latents.cuda()
+            # -----------------Loop through all images-----------------
+            for i_b, batch in tqdm(enumerate(dataloader)):
+                data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + "Step: 1.")
+                images, latents, data_indices = batch
 
+                step1_collected = [None] * images.shape[0]
+
+                images, latents = images.cuda(), latents.cuda()
+                for _ in tqdm(range(stages[0]['step1'])):
                     optim.zero_grad()
 
                     loss, collected = self.model.forward_step1(images, latents, None)
@@ -468,75 +470,86 @@ class GeneralizingTrainer2(Trainer):
                     normals, lights_a, lights_b, albedos, depths, canon_masks = collected
                     if type(canon_masks) is not list:
                         canon_masks = [canon_masks]
-                    for collected_index, data_index in enumerate(data_indices):
-                        step1_collected[data_index] = (normals[collected_index:collected_index+1],
-                                                       lights_a[collected_index:collected_index+1],
-                                                       lights_b[collected_index:collected_index+1],
-                                                       albedos[collected_index:collected_index+1],
-                                                       depths[collected_index:collected_index+1],
-                                                       canon_masks[collected_index])
                     loss.backward()
                     optim.step()
                     total_it += 1
+                for batch_index in range(images.shape[0]):
+                        step1_collected[batch_index] = (normals[batch_index].unsqueeze(0).cpu(),
+                                                       lights_a[batch_index].unsqueeze(0).cpu(),
+                                                       lights_b[batch_index].unsqueeze(0).cpu(),
+                                                       albedos[batch_index].unsqueeze(0).cpu(),
+                                                       depths[batch_index].unsqueeze(0).cpu(),
+                                                       canon_masks[batch_index])
+                del normals, lights_a, lights_b, albedos, depths, canon_masks
 
-                    if self.log_wandb:
-                        wandb.log({"epoch": epoch,
-                                   "total_it": total_it,
-                                   "loss_step1": loss,
-                                   "image_num": data_indices})
-            # -----------------------------Step 2 and 3------------------------
-            if self.debug:
-                logging.info(f"Doing step 3, epoch {epoch + 1}/{self.n_epochs}")
-            data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Image: {data_indices+1}/{len(images_latents)}."
-                                          + "Step: 3.")
-            for _ in range(stages[0]['step2']):
-                for batch in tqdm(dataloader):
-                    images, latents, data_indices = batch
-                    images, latents = images.cuda(), latents.cuda()
+                if self.log_wandb:
+                    wandb.log({"epoch": epoch,
+                                "total_it": total_it,
+                                "loss_step1": loss})
 
-                    for batch_index in range(len(images)):
-                        image = images[batch_index:batch_index+1]
-                        latent = latents[batch_index:batch_index+1]
-                        index = data_indices[batch_index]
-
+                # -----------------------------Step 2 and 3------------------------
+                if self.debug:
+                    logging.info(f"Doing step 3, epoch {epoch + 1}/{self.n_epochs}")
+                data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + "Step: 2.")
+                # Free up GPU memory
+                images, latents = images.cpu(), latents.cpu()
+                torch.cuda.empty_cache()
+                for batch_index in range(len(images)):
+                    image = images[batch_index].unsqueeze(0).cuda()
+                    latent = latents[batch_index].unsqueeze(0).cuda()
+                    step1_collected_batch = step1_collected[batch_index]
+                    # Ugly af, probably some cleaner way of doing this
+                    normal, light_a, light_b, albedo, depth, canon_mask = step1_collected_batch
+                    normal, light_a, light_b, albedo, depth, canon_mask =   (normal.cuda(), 
+                                                                            light_a.cuda(), 
+                                                                            light_b.cuda(), 
+                                                                            albedo.cuda(), 
+                                                                            depth.cuda(), 
+                                                                            canon_mask)
+                    step1_collected_batch = normal, light_a, light_b, albedo, depth, canon_mask
+                    for _ in tqdm(range(stages[0]['step2'])):
                         self.optim_step2.zero_grad()
-                        self.optim_step3.zero_grad()
-                        collected = step1_collected[index]
-
                         # step 2
                         loss_step2, collected = self.model.forward_step2(image,
-                                                                         latent,
-                                                                         collected,
-                                                                         self.n_proj_samples)
+                                                                            latent,
+                                                                            step1_collected_batch,
+                                                                            self.n_proj_samples)
+                        loss_step2.backward()
+                        self.optim_step2.step()
+                        total_it += 1
 
+                    data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                          + f"Batch: {i_b+1}/{len(dataloader)}."
+                                          + "Step: 3.")
+                    for _ in tqdm(range(stages[0]['step3'])):
+                        self.optim_step3.zero_grad()
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)
-                        step1_collected[index] = collected
-                        loss_step2.backward()
-                        loss_step3.backward()
-                        self.optim_step2.step()
+                        loss_step3.backward()                        
                         self.optim_step3.step()
                         total_it += 1
 
-                        if self.log_wandb:
-                            wandb.log({"epoch": epoch,
-                                       "total_it": total_it,
-                                       "loss_step2": loss_step2,
-                                       "loss_step3": loss_step3,
-                                       "image_num": data_indices})
+                    if self.log_wandb:
+                        wandb.log({"epoch": epoch,
+                                    "total_it": total_it,
+                                    "loss_step2": loss_step2,
+                                    "loss_step3": loss_step3,
+                                    "image_num": data_indices})
 
-            if self.plot_intermediate:
-                if index % 3 == 0:
-                    recon_im, recon_depth = self.model.evaluate_results(images)
-                    recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
-                    plot_reconstructions(recon_im, recon_depth,
-                                         total_it=str(total_it),
-                                         im_idx=str(index),
-                                         epoch=str(epoch))
+            # if self.plot_intermediate:
+            #     if epoch % 20 == 0:
+            #         sample
+            #         recon_im, recon_depth = self.model.evaluate_results(images)
+            #         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+            #         plot_reconstructions(recon_im, recon_depth,
+            #                              total_it=str(total_it),
+            #                              im_idx=str(index),
+            #                              epoch=str(epoch))
 
-        if self.save_ckpts:
-            self.model.save_checkpoint(data_indices, epoch, total_it, self.category)
+            if epoch % 20 == 0 and self.save_ckpts:
+                self.model.save_checkpoint("", epoch, total_it, self.category)
         logging.info('Finished Training')
 
     def pretrain_on_prior(self, data_iterator_priors, data_iterator, plot_depth_map=False):
@@ -553,8 +566,8 @@ class GeneralizingTrainer2(Trainer):
 
         data_iterator.set_description("Pretraining depth net")
         iterator = tqdm(range(self.n_epochs_prior))
-        for _ in iterator:
-            for i_b, batch in enumerate(data_iterator):
+        for epoch in iterator:
+            for batch in data_iterator:
                 images, latents, data_indices = batch
                 images, latents = images.cuda(), latents.cuda()
                 prior = priors[data_indices].cuda()
@@ -568,7 +581,7 @@ class GeneralizingTrainer2(Trainer):
 
             if self.log_wandb:
                 wandb.log({"loss_prior": loss.cpu(),
-                           "image_num": i_b})
+                           "epoch_prior": epoch})
 
         if plot_depth_map:
             depth = depth.detach().cpu().numpy()
