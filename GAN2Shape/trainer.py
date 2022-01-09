@@ -53,7 +53,7 @@ class Trainer():
             paths, _ = self.model.build_checkpoint_path(load_dict['base_path'], load_dict['category'], general=True)
             self.model.load_from_checkpoint(paths[-1])
 
-    def fit(self, images_latents, plot_depth_map=False, 
+    def fit(self, images_latents, plot_depth_map=False,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
             shuffle=False, **kwargs):
 
@@ -125,7 +125,6 @@ class Trainer():
             if self.save_ckpts:
                 self.model.save_checkpoint(data_index, stage, total_it, self.category)
         logging.info('Finished Training')
-
 
     def pretrain_on_prior(self, image, i_batch, plot_depth_map):
         optim = Trainer.default_optimizer([self.model.depth_net])
@@ -288,7 +287,7 @@ class GeneralizingTrainer(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
     def __init__(self, model, model_config, debug=False, plot_intermediate=False,
-                 log_wandb=False, save_ckpts=False):
+                 log_wandb=False, save_ckpts=False, load_dict=None):
         super().__init__(model, model_config, debug=debug,
                          plot_intermediate=plot_intermediate,
                          log_wandb=log_wandb, save_ckpts=save_ckpts,
@@ -300,7 +299,6 @@ class GeneralizingTrainer(Trainer):
             batch_size=2, shuffle=False):
 
         total_it = 0
-        n_stages = len(stages)
         dataloader = DataLoader(images_latents,
                                 batch_size=batch_size,
                                 shuffle=shuffle,
@@ -411,6 +409,7 @@ class GeneralizingTrainer(Trainer):
             self.model.save_checkpoint(data_indices, epoch, total_it, self.category)
         logging.info('Finished Training')
 
+
 class GeneralizingTrainer2(Trainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
@@ -427,11 +426,10 @@ class GeneralizingTrainer2(Trainer):
             batch_size=2, shuffle=False):
 
         total_it = 0
-        n_stages = len(stages)
         data_iterator_priors = tqdm(DataLoader(images_latents,
-                                batch_size=1,
-                                shuffle=False,
-                                num_workers=self.n_workers))
+                                               batch_size=1,
+                                               shuffle=False,
+                                               num_workers=self.n_workers))
 
         dataloader = DataLoader(images_latents,
                                 batch_size=batch_size,
@@ -455,8 +453,8 @@ class GeneralizingTrainer2(Trainer):
             # -----------------Loop through all images-----------------
             for i_b, batch in enumerate(dataloader):
                 data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}."
-                                          + "Step: 1.")
+                                              + f"Batch: {i_b+1}/{len(dataloader)}."
+                                              + "Step: 1.")
                 images, latents, data_indices = batch
 
                 step1_collected = [None] * images.shape[0]
@@ -474,22 +472,22 @@ class GeneralizingTrainer2(Trainer):
                     optim.step()
                     total_it += 1
                 for batch_index in range(images.shape[0]):
-                        step1_collected[batch_index] = (normals[batch_index].unsqueeze(0).cpu(),
-                                                       lights_a[batch_index].unsqueeze(0).cpu(),
-                                                       lights_b[batch_index].unsqueeze(0).cpu(),
-                                                       albedos[batch_index].unsqueeze(0).cpu(),
-                                                       depths[batch_index].unsqueeze(0).cpu(),
-                                                       canon_masks[batch_index])
+                    step1_collected[batch_index] = (normals[batch_index].unsqueeze(0).cpu(),
+                                                    lights_a[batch_index].unsqueeze(0).cpu(),
+                                                    lights_b[batch_index].unsqueeze(0).cpu(),
+                                                    albedos[batch_index].unsqueeze(0).cpu(),
+                                                    depths[batch_index].unsqueeze(0).cpu(),
+                                                    canon_masks[batch_index])
 
                 if self.log_wandb:
                     wandb.log({"epoch": epoch,
-                                "total_it": total_it,
-                                "loss_step1": loss})
+                               "total_it": total_it,
+                               "loss_step1": loss})
 
                 # -----------------------------Step 2 and 3------------------------
                 if self.debug:
                     logging.info(f"Doing step 3, epoch {epoch + 1}/{self.n_epochs}")
-                
+
                 # Free up GPU memory
                 images, latents = images.cpu(), latents.cpu()
                 torch.cuda.empty_cache()
@@ -499,18 +497,18 @@ class GeneralizingTrainer2(Trainer):
                     step1_collected_batch = step1_collected[batch_index]
                     # Ugly af, probably some cleaner way of doing this
                     normal, light_a, light_b, albedo, depth, canon_mask = step1_collected_batch
-                    normal, light_a, light_b, albedo, depth, canon_mask =   (normal.cuda(), 
-                                                                            light_a.cuda(), 
-                                                                            light_b.cuda(), 
-                                                                            albedo.cuda(), 
-                                                                            depth.cuda(), 
-                                                                            canon_mask)
+                    normal, light_a, light_b, albedo, depth, canon_mask = (normal.cuda(),
+                                                                           light_a.cuda(),
+                                                                           light_b.cuda(),
+                                                                           albedo.cuda(),
+                                                                           depth.cuda(),
+                                                                           canon_mask)
                     step1_collected_batch = normal, light_a, light_b, albedo, depth, canon_mask
 
                     data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}. "
-                                          + f"Sub-batch: {batch_index+1}/{len(images)}. "
-                                          + "Step: 2.")
+                                                  + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                                  + f"Sub-batch: {batch_index+1}/{len(images)}. "
+                                                  + "Step: 2.")
                     for _ in range(stages[0]['step2']):
                         self.optim_step2.zero_grad()
                         # step 2
@@ -523,9 +521,9 @@ class GeneralizingTrainer2(Trainer):
                         total_it += 1
 
                     data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                          + f"Batch: {i_b+1}/{len(dataloader)}. "
-                                          + f"Sub-batch: {batch_index+1}/{len(images)}. "
-                                          + "Step: 3.")
+                                                  + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                                  + f"Sub-batch: {batch_index+1}/{len(images)}. "
+                                                  + "Step: 3.")
                     for _ in range(stages[0]['step3']):
                         self.optim_step3.zero_grad()
                         # step 3
@@ -537,10 +535,10 @@ class GeneralizingTrainer2(Trainer):
                     torch.cuda.empty_cache()
                     if self.log_wandb:
                         wandb.log({"epoch": epoch,
-                                    "total_it": total_it,
-                                    "loss_step2": loss_step2,
-                                    "loss_step3": loss_step3,
-                                    "image_num": data_indices})
+                                   "total_it": total_it,
+                                   "loss_step2": loss_step2,
+                                   "loss_step3": loss_step3,
+                                   "image_num": data_indices})
 
             # if self.plot_intermediate:
             #     if epoch % 20 == 0:
