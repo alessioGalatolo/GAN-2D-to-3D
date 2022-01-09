@@ -5,6 +5,7 @@ from torch import cuda
 from GAN2Shape.model import GAN2Shape
 from GAN2Shape.dataset import ImageDataset
 from GAN2Shape import utils
+from GAN2Shape.trainer import Trainer
 import numpy as np
 from plotting import *
 
@@ -38,10 +39,10 @@ if __name__ == '__main__':
                 transforms.ToTensor()
             ]
         )
-    subset=config.get('image_subset', None)
+    subset = config.get('image_subset', None)
     config['transform'] = transform
-    images = ImageDataset(config.get('root_path'), transform=transform, 
-                                subset=subset)
+    images = ImageDataset(config.get('root_path'), transform=transform,
+                          subset=subset)
     model = GAN2Shape(config)
 
     category = config.get('category')
@@ -49,12 +50,6 @@ if __name__ == '__main__':
     stage = config.get('stage', '*')
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
-
-    CATEGORIES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
-                  'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
-                  'horse', 'motorbike', 'person', 'pottedplant',
-                  'sheep', 'sofa', 'train', 'tvmonitor']
-    CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
 
     if not args.GENERALIZE:
         generator = model.load_from_checkpoints(base_path, category)
@@ -89,7 +84,7 @@ if __name__ == '__main__':
         mask = out.float()
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
-        recon_depth[0, mask[0, 0] != CATEGORY2NUMBER[category]] = np.NaN
+        recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
 
         if args.GENERALIZE:
             img_idx = subset[img_idx]
