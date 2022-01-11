@@ -299,6 +299,11 @@ class GeneralizingTrainer(Trainer):
             batch_size=2, shuffle=False):
 
         total_it = 0
+        data_iterator_priors = tqdm(DataLoader(images_latents,
+                                               batch_size=1,
+                                               shuffle=False,
+                                               num_workers=self.n_workers))
+
         dataloader = DataLoader(images_latents,
                                 batch_size=batch_size,
                                 shuffle=shuffle,
@@ -306,13 +311,9 @@ class GeneralizingTrainer(Trainer):
 
         # -----------------Pretrain on all images------------------------
         data_iterator = tqdm(dataloader)
-        data_iterator.set_description("Pretraining depth net")
-        for batch in data_iterator:
-            images, latents, data_indices = batch
-            images, latents = images.cuda(), latents.cuda()
-            if not self.debug:
-                # Pretrain depth net on the prior shape
-                self.pretrain_on_prior(images, data_indices, plot_depth_map)
+        # Pretrain depth net on the prior shape
+        if self.load_dict is None:
+            self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
 
         # -----------------Loop through all epochs-------------------------
         data_iterator = tqdm(range(self.n_epochs))
@@ -409,8 +410,44 @@ class GeneralizingTrainer(Trainer):
             self.model.save_checkpoint(data_indices, epoch, total_it, self.category)
         logging.info('Finished Training')
 
+    def pretrain_on_prior(self, data_iterator_priors, data_iterator, plot_depth_map=False):
+        optim = Trainer.default_optimizer([self.model.depth_net])
+        train_loss = []
+        logging.info("Pretraining depth net on prior shape")
+        data_iterator_priors.set_description("Generating priors for the dataset")
+        priors = torch.zeros((len(data_iterator_priors), self.image_size, self.image_size))
+        for img in data_iterator_priors:
+            image, _, img_idx = img
+            image = image.cuda()
+            prior = self.prior_shape(image, shape=self.prior_name, map_location='cpu')
+            priors[img_idx] = prior
 
-class GeneralizingTrainer2(Trainer):
+        data_iterator.set_description("Pretraining depth net")
+        iterator = tqdm(range(self.n_epochs_prior))
+        for epoch in iterator:
+            for batch in data_iterator:
+                images, latents, data_indices = batch
+                images, latents = images.cuda(), latents.cuda()
+                prior = priors[data_indices].cuda()
+                optim.zero_grad()
+                loss, depth = self.model.depth_net_forward(images, prior)
+                loss.backward()
+                optim.step()
+
+            with torch.no_grad():
+                iterator.set_description(f"Depth net prior loss = {loss.cpu()}")
+
+            if self.log_wandb:
+                wandb.log({"loss_prior": loss.cpu(),
+                           "epoch_prior": epoch})
+
+        if plot_depth_map:
+            depth = depth.detach().cpu().numpy()
+            plot_predicted_depth_map(depth, self.image_size, block=True)
+        return train_loss
+
+
+class GeneralizingTrainer2(GeneralizingTrainer):
     # exactly as the training class but the training loop
     # is designed to favor generalization
     def __init__(self, model, model_config, debug=False, plot_intermediate=False,
@@ -448,7 +485,7 @@ class GeneralizingTrainer2(Trainer):
             # -----------------------------Step 1--------------------------
             if self.debug:
                 logging.info(f"Doing step 1, epoch {epoch + 1}/{self.n_epochs}")
-            
+
             optim = self.optim_step1
             # -----------------Loop through all images-----------------
             for i_b, batch in enumerate(dataloader):
@@ -497,13 +534,12 @@ class GeneralizingTrainer2(Trainer):
                     step1_collected_batch = step1_collected[batch_index]
                     # Ugly af, probably some cleaner way of doing this
                     normal, light_a, light_b, albedo, depth, canon_mask = step1_collected_batch
-                    normal, light_a, light_b, albedo, depth, canon_mask = (normal.cuda(),
-                                                                           light_a.cuda(),
-                                                                           light_b.cuda(),
-                                                                           albedo.cuda(),
-                                                                           depth.cuda(),
-                                                                           canon_mask)
-                    step1_collected_batch = normal, light_a, light_b, albedo, depth, canon_mask
+                    step1_collected_batch = (normal.cuda(),
+                                             light_a.cuda(),
+                                             light_b.cuda(),
+                                             albedo.cuda(),
+                                             depth.cuda(),
+                                             canon_mask)
 
                     data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
                                                   + f"Batch: {i_b+1}/{len(dataloader)}. "
@@ -513,9 +549,9 @@ class GeneralizingTrainer2(Trainer):
                         self.optim_step2.zero_grad()
                         # step 2
                         loss_step2, collected = self.model.forward_step2(image,
-                                                                            latent,
-                                                                            step1_collected_batch,
-                                                                            self.n_proj_samples)
+                                                                         latent,
+                                                                         step1_collected_batch,
+                                                                         self.n_proj_samples)
                         loss_step2.backward()
                         self.optim_step2.step()
                         total_it += 1
@@ -528,7 +564,7 @@ class GeneralizingTrainer2(Trainer):
                         self.optim_step3.zero_grad()
                         # step 3
                         loss_step3, _ = self.model.forward_step3(image, latent, collected)
-                        loss_step3.backward()                        
+                        loss_step3.backward()
                         self.optim_step3.step()
                         total_it += 1
 
@@ -553,40 +589,3 @@ class GeneralizingTrainer2(Trainer):
             if epoch % 20 == 0 and self.save_ckpts:
                 self.model.save_checkpoint("", epoch, total_it, self.category)
         logging.info('Finished Training')
-
-    def pretrain_on_prior(self, data_iterator_priors, data_iterator, plot_depth_map=False):
-        optim = Trainer.default_optimizer([self.model.depth_net])
-        train_loss = []
-        logging.info("Pretraining depth net on prior shape")
-        data_iterator_priors.set_description("Generating priors for the dataset")
-        priors = torch.zeros((len(data_iterator_priors), self.image_size, self.image_size))
-        for img in data_iterator_priors:
-            image, _, img_idx = img
-            image = image.cuda()
-            prior = self.prior_shape(image, shape=self.prior_name, map_location='cpu')
-            priors[img_idx] = prior
-
-        data_iterator.set_description("Pretraining depth net")
-        iterator = tqdm(range(self.n_epochs_prior))
-        for epoch in iterator:
-            for batch in data_iterator:
-                images, latents, data_indices = batch
-                images, latents = images.cuda(), latents.cuda()
-                prior = priors[data_indices].cuda()
-                optim.zero_grad()
-                loss, depth = self.model.depth_net_forward(images, prior)
-                loss.backward()
-                optim.step()
-
-            with torch.no_grad():
-                iterator.set_description(f"Depth net prior loss = {loss.cpu()}")
-
-            if self.log_wandb:
-                wandb.log({"loss_prior": loss.cpu(),
-                           "epoch_prior": epoch})
-
-        if plot_depth_map:
-            depth = depth.detach().cpu().numpy()
-            plot_predicted_depth_map(depth, self.image_size, block=True)
-        return train_loss
-

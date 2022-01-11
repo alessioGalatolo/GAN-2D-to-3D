@@ -69,7 +69,7 @@ if __name__ == '__main__':
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
         # plot_originals(images[img_idx].unsqueeze(0), block=True)
-        # plot_reconstructions(recon_im, recon_depth, block=True)
+        plot_reconstructions(recon_im, recon_depth, im_idx=img_idx, block=False)
 
         size = 473
         img = utils.resize(img1, [size, size])

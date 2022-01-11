@@ -81,7 +81,7 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
     plt.axis('off')
     plt.title('Reconstructed image')
     plt.show(block=block)
-    plt.savefig("results/plots/recon_im_number_" + im_idx + "_"
+    plt.savefig("results/plots/recon_im_number_" + str(im_idx) + "_"
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
@@ -92,7 +92,7 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
     plt.axis('off')
     plt.title('Reconstructed depth map')
     plt.show(block=block)
-    plt.savefig("results/plots/recon_im_depth_" + im_idx + "_"
+    plt.savefig("results/plots/recon_im_depth_" + str(im_idx) + "_"
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
@@ -102,7 +102,7 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
     plt.axis('off')
     plt.title('Reconstructed depth map')
     plt.show(block=block)
-    plt.savefig("results/plots/recon_3d_depth_" + im_idx + "_"
+    plt.savefig("results/plots/recon_3d_depth_" + str(im_idx) + "_"
                 + total_it + "_it_"
                 + "stage_" + stage
                 + ".png")
