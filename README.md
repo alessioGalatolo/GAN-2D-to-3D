@@ -10,6 +10,8 @@ Click on each image to find the respective 3D surface plot.
 
 20Smoothed%20box
 ### Results using the ellipsoid prior
+| Left-aligned | Center-aligned | Right-aligned |
+| :---         |     :---:      |          ---: |
 | ![Cat 0 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_0.gif) | ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) |
 | ![Car 0 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_0.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) |
 
