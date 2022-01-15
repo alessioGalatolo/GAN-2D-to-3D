@@ -4,40 +4,21 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 ## Interactive visualizations of the results
 Click on each image to find the respective 3D surface plot.
 
-### Results using the box prior
-<object data="docs/Car - Ellipsoid/plotly__im_0.html" style="height: 50vh; width: 30vw; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-</object>
+### Results using the Smoothed Box prior
+<img src="docs/Cat - Smoothed box/plotly__im_0.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Cat - Smoothed box/plotly__im_1.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Cat - Smoothed box/plotly__im_2.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Smoothed box/plotly__im_0.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Smoothed box/plotly__im_4.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Smoothed box/plotly__im_5.gif" style="height: auto; width: 30vw; align-content: center;">
 
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/html-stuff/cat_smooth_box_htmls/plotly__im_0.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
- 
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car0.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
-
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car4.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
- 
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_box_subset/car5.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
- 
- ### Results using the ellipsoid prior
- 
- <a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/0.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
-
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/4.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
- 
-<a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/htmls/car_ellipsoid_full-run-2/5.html">
-  <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
- </a>
+### Results using the ellipsoid prior
+<img src="docs/Cat - Ellipsoid/plotly__im_0.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Cat - Ellipsoid/plotly__im_1.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Cat - Ellipsoid/plotly__im_2.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Ellipsoid/plotly__im_0.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Ellipsoid/plotly__im_4.gif" style="height: auto; width: 30vw; align-content: center;">
+<img src="docs/Car - Ellipsoid/plotly__im_5.gif" style="height: auto; width: 30vw; align-content: center;">
 
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
 ```
