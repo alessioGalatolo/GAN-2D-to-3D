@@ -478,8 +478,8 @@ class GeneralizingTrainer2(GeneralizingTrainer):
         # -----------------Pretrain on all images------------------------
         data_iterator = tqdm(dataloader)
         # Pretrain depth net on the prior shape if not using pre-trained weights
-        # if self.load_dict is None:
-        #     self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
+        if self.load_dict is None:
+            self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
 
         # -----------------Loop through all epochs-------------------------
         data_iterator = tqdm(range(self.n_epochs))
