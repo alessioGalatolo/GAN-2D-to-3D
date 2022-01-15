@@ -8,7 +8,7 @@ from GAN2Shape import utils
 from GAN2Shape.trainer import Trainer
 import numpy as np
 from plotting import *
-
+from tqdm import tqdm
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate GAN 2D to 3D shape')
@@ -24,6 +24,10 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='If to run training procedure that favors generalization')
+    parser.add_argument('--record-loss',
+                        dest='RECORD_LOSS',
+                        default=None,
+                        help='Set to "filename" (not full path) to save the step1 loss list in "results/loss_lists/filename"')
     args = parser.parse_args()
     # read configuration
     with open(args.CONFIG, 'r') as config_file:
@@ -40,6 +44,7 @@ if __name__ == '__main__':
             ]
         )
     subset = config.get('image_subset', None)
+    # subset = np.arange(11,211,1)
     config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform,
                           subset=subset)
@@ -66,11 +71,12 @@ if __name__ == '__main__':
         generator = np.arange(len(subset))
 
     loss_list = []
-    for img_idx in generator:
+    for img_idx in tqdm(generator):
         img1 = images[img_idx].unsqueeze(0)
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
-        loss_step1, _ = model.forward_step1(img1.cuda(), None, None, step1=True, eval=False)
-        loss_list.append(loss_step1.detach().cpu().item())
+        if args.RECORD_LOSS is not None:
+            loss_step1, _ = model.forward_step1(img1.cuda(), None, None, step1=True, eval=False)
+            loss_list.append(loss_step1.detach().cpu().item())
         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
         if args.GENERALIZE:
             plt_idx = subset[img_idx]
@@ -94,9 +100,12 @@ if __name__ == '__main__':
 
         recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
         plotly_3d_animate(recon_depth, texture=recon_im, img_idx=plt_idx, save=True, show=False)
-
-    loss_list = np.array(loss_list)
-    mean = np.mean(loss_list)
-    std = np.std(loss_list)
-    print('mean = ', mean)
-    print('std = ', std)
+        
+    if args.RECORD_LOSS is not None:
+        loss_list = np.array(loss_list)
+        statistical_box_plot(loss_list)
+        mean = np.mean(loss_list)
+        std = np.std(loss_list)
+        print('mean = ', mean)
+        print('std = ', std )
+        np.save('results/loss_lists/step1_'+ args.RECORD_LOSS +'_model',loss_list)

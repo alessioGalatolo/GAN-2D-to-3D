@@ -201,3 +201,12 @@ def plot_reconstructions(recon_im, recon_depth, total_it="", im_idx="", stage=""
                 + "stage_" + stage
                 + ".png")
     plt.close()
+
+
+def statistical_box_plot(loss_list, savename=None):
+    a=0
+    plt.boxplot(loss_list)
+    plt.show()
+
+    if savename is not None:
+        plt.savefig(savename)
