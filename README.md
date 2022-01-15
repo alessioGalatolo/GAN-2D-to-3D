@@ -5,6 +5,9 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 Click on each image to find the respective 3D surface plot.
 
 ### Results using the Smoothed Box prior
+![text](docs/Cat - Smoothed box/plotly__im_0.gif)
+![text](docs/Cat - Smoothed box/plotly__im_1.gif)
+![text](docs/Cat - Smoothed box/plotly__im_2.gif)
 <img src="docs/Cat - Smoothed box/plotly__im_0.gif" style="height: auto; width: 10vw; align-content: center;">
 <img src="docs/Cat - Smoothed box/plotly__im_1.gif" style="height: auto; width: 10vw; align-content: center;">
 <img src="docs/Cat - Smoothed box/plotly__im_2.gif" style="height: auto; width: 10vw; align-content: center;">
