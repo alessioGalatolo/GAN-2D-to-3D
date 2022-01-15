@@ -110,7 +110,7 @@ def main():
         # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
         if 'image_subset' in config:
             print(">>> Warning, using a subset with a generalizing trainer.")
-            print("It is always better to use the whole dataset.<<<")        
+            print("It is always better to use the whole dataset.<<<")
     else:
         trainer = Trainer(**trainer_config)
         stages = [{'step1': 700, 'step2': 700, 'step3': 600},

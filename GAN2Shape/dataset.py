@@ -52,7 +52,10 @@ class LatentDataset(Dataset):
         with torch.no_grad():
             latent = torch.load(latent_path, map_location='cpu')
             if type(latent) is dict:
+                if 'latent' not in latent:
+                    latent = latent.popitem()[1]
                 latent = latent['latent']
+
             if latent.dim() == 2:
                 latent = latent.squeeze(0)
             return latent

@@ -226,8 +226,9 @@ if __name__ == "__main__":
 
     img_gen, _ = g_ema([latent_path[-1]], input_is_w=True, noise=noises)
 
-    filename = os.path.join('/'.join(args.files[0].split('/')[0:-1]), "latents")\
-        + os.path.basename(args.files[0])[0] + ".pt"
+    filename = os.path.join('/'.join(args.files[0].split('/')[0:-1]),
+                            "latents",
+                            os.path.basename(args.files[0]) + ".pt")
 
     img_ar = make_image(img_gen)
 
@@ -235,7 +236,7 @@ if __name__ == "__main__":
     for i, input_name in enumerate(args.files):
         noise_single = []
         for noise in noises:
-            noise_single.append(noise[i : i + 1])
+            noise_single.append(noise[i: i + 1])
 
         result_file[input_name] = {
             "img": img_gen[i],
