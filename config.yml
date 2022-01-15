@@ -14,7 +14,7 @@ refinement_iterations: 1
 n_proj_samples: 16
 batch_size: 32
 prior_name: ellipsoid
-image_subset: [0]
+image_subset: [1,2]
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
