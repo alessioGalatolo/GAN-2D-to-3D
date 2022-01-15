@@ -1,20 +1,20 @@
 n_workers: 0
 n_epochs_generalized: 100
 n_epochs_prior: 1000
-gan_size: 256
+gan_size: 128
 channel_multiplier: 1
 image_size: 128
 z_dim: 512
-category: cat
-gan_ckpt_path: checkpoints/stylegan2/stylegan2-catface-config-e.pt
-root_path: data/cat
+category: face
+gan_ckpt_path: checkpoints/stylegan2/stylegan2-celeba-config-e.pt
+root_path: data/celeba
 learning_rate: 0.0001
 view_scale: 1
 refinement_iterations: 1
 n_proj_samples: 16
 batch_size: 32
-prior_name: smoothed_box
-image_subset: [0,1,2,3,4,5,6,7,8,9]
+prior_name: ellipsoid
+image_subset: [0]
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
