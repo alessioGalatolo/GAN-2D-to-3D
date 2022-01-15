@@ -5,23 +5,22 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 Click on each image to find the respective 3D surface plot.
 
 ### Results using the Smoothed Box prior
-![text](docs/Cat - Smoothed box/plotly__im_0.gif)
-![text](docs/Cat - Smoothed box/plotly__im_1.gif)
-![text](docs/Cat - Smoothed box/plotly__im_2.gif)
-<img src="docs/Cat - Smoothed box/plotly__im_0.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Cat - Smoothed box/plotly__im_1.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Cat - Smoothed box/plotly__im_2.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Smoothed box/plotly__im_0.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Smoothed box/plotly__im_4.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Smoothed box/plotly__im_5.gif" style="height: auto; width: 10vw; align-content: center;">
+<img src="docs/Cat - Smoothed box/plotly__im_0.gif" width="200px">
+<img src="docs/Cat - Smoothed box/plotly__im_1.gif" width="200px">
+<img src="docs/Cat - Smoothed box/plotly__im_2.gif" width="200px">
+
+<img src="docs/Car - Smoothed box/plotly__im_0.gif" width="200px">
+<img src="docs/Car - Smoothed box/plotly__im_4.gif" width="200px">
+<img src="docs/Car - Smoothed box/plotly__im_5.gif" width="200px">
 
 ### Results using the ellipsoid prior
-<img src="docs/Cat - Ellipsoid/plotly__im_0.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Cat - Ellipsoid/plotly__im_1.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Cat - Ellipsoid/plotly__im_2.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Ellipsoid/plotly__im_0.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Ellipsoid/plotly__im_4.gif" style="height: auto; width: 10vw; align-content: center;">
-<img src="docs/Car - Ellipsoid/plotly__im_5.gif" style="height: auto; width: 10vw; align-content: center;">
+<img src="docs/Cat - Ellipsoid/plotly__im_0.gif" width="200px">
+<img src="docs/Cat - Ellipsoid/plotly__im_1.gif" width="200px">
+<img src="docs/Cat - Ellipsoid/plotly__im_2.gif" width="200px">
+
+<img src="docs/Car - Ellipsoid/plotly__im_0.gif" width="200px">
+<img src="docs/Car - Ellipsoid/plotly__im_4.gif" width="200px">
+<img src="docs/Car - Ellipsoid/plotly__im_5.gif" width="200px">
 
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
 ```
