@@ -40,6 +40,7 @@ if __name__ == '__main__':
             ]
         )
     subset = config.get('image_subset', None)
+    # subset = np.arange(11,201,1)
     config['transform'] = transform
     images = ImageDataset(config.get('root_path'), transform=transform,
                           subset=subset)
@@ -62,14 +63,23 @@ if __name__ == '__main__':
             quit()
         paths, _ = model.build_checkpoint_path(base_path, category, general=args.GENERALIZE)
         model.load_from_checkpoint(paths[-1])
+        
         generator = np.arange(len(subset))
+        
 
+    loss_list = []
     for img_idx in generator:
         img1 = images[img_idx].unsqueeze(0)
         recon_im, recon_depth = model.evaluate_results(img1.cuda())
+        loss_step1, _ = model.forward_step1(img1.cuda(), None, None, step1=True, eval=False)
+        loss_list.append(loss_step1.detach().cpu().item())
         recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
+        if args.GENERALIZE:
+            plt_idx = subset[img_idx]
+        else:
+            plt_idx = img_idx
         # plot_originals(images[img_idx].unsqueeze(0), block=True)
-        plot_reconstructions(recon_im, recon_depth, im_idx=img_idx, block=False)
+        plot_reconstructions(recon_im, recon_depth, block=False,im_idx= str(plt_idx))
 
         size = 473
         img = utils.resize(img1, [size, size])
@@ -85,7 +95,11 @@ if __name__ == '__main__':
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
         recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
-
-        if args.GENERALIZE:
-            img_idx = subset[img_idx]
-        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True, show=False)
+        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=plt_idx, save=True, show=False)
+        
+    loss_list = np.array(loss_list)
+    mean = np.mean(loss_list)
+    std = np.std(loss_list)
+    print('mean = ', mean)
+    print('std = ', std )
+        
