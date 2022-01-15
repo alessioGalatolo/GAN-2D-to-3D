@@ -457,6 +457,8 @@ class GeneralizingTrainer2(GeneralizingTrainer):
                          log_wandb=log_wandb, save_ckpts=save_ckpts,
                          load_dict=load_dict)
         self.n_epochs = model_config.get('n_epochs_generalized', 1)
+        self.n_epochs_init = model_config.get('n_epochs_init', 1)
+        self.n_init_iterations = model_config.get('n_init_iterations', 1)
 
     def fit(self, images_latents, plot_depth_map=False,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
@@ -475,14 +477,13 @@ class GeneralizingTrainer2(GeneralizingTrainer):
 
         # -----------------Pretrain on all images------------------------
         data_iterator = tqdm(dataloader)
-        # Pretrain depth net on the prior shape
-        if self.load_dict is None:
-            self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
+        # Pretrain depth net on the prior shape if not using pre-trained weights
+        # if self.load_dict is None:
+        #     self.pretrain_on_prior(data_iterator_priors, data_iterator, plot_depth_map=plot_depth_map)
 
         # -----------------Loop through all epochs-------------------------
         data_iterator = tqdm(range(self.n_epochs))
         for epoch in data_iterator:
-            # -----------------------------Step 1--------------------------
             if self.debug:
                 logging.info(f"Doing step 1, epoch {epoch + 1}/{self.n_epochs}")
 
@@ -497,7 +498,8 @@ class GeneralizingTrainer2(GeneralizingTrainer):
                 step1_collected = [None] * images.shape[0]
 
                 images, latents = images.cuda(), latents.cuda()
-                for _ in range(stages[0]['step1']):
+                # -----------------------------Step 1--------------------------
+                for _ in range(stages[epoch>=self.n_epochs_init]['step1']):
                     optim.zero_grad()
 
                     loss, collected = self.model.forward_step1(images, latents, None)
@@ -528,53 +530,56 @@ class GeneralizingTrainer2(GeneralizingTrainer):
                 # Free up GPU memory
                 images, latents = images.cpu(), latents.cpu()
                 torch.cuda.empty_cache()
-                for batch_index in range(len(images)):
-                    image = images[batch_index].unsqueeze(0).cuda()
-                    latent = latents[batch_index].unsqueeze(0).cuda()
-                    step1_collected_batch = step1_collected[batch_index]
-                    # Ugly af, probably some cleaner way of doing this
-                    normal, light_a, light_b, albedo, depth, canon_mask = step1_collected_batch
-                    step1_collected_batch = (normal.cuda(),
-                                             light_a.cuda(),
-                                             light_b.cuda(),
-                                             albedo.cuda(),
-                                             depth.cuda(),
-                                             canon_mask)
 
-                    data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                                  + f"Batch: {i_b+1}/{len(dataloader)}. "
-                                                  + f"Sub-batch: {batch_index+1}/{len(images)}. "
-                                                  + "Step: 2.")
-                    for _ in range(stages[0]['step2']):
-                        self.optim_step2.zero_grad()
-                        # step 2
-                        loss_step2, collected = self.model.forward_step2(image,
-                                                                         latent,
-                                                                         step1_collected_batch,
-                                                                         self.n_proj_samples)
-                        loss_step2.backward()
-                        self.optim_step2.step()
-                        total_it += 1
+                # Perform initialization iterations if epochs < n_init_iterations
+                for init_iter in range(stages[epoch>=self.n_epochs_init]['n_init_iterations']):
+                    for batch_index in range(len(images)):
+                        image = images[batch_index].unsqueeze(0).cuda()
+                        latent = latents[batch_index].unsqueeze(0).cuda()
+                        step1_collected_batch = step1_collected[batch_index]
+                        # Ugly af, probably some cleaner way of doing this
+                        normal, light_a, light_b, albedo, depth, canon_mask = step1_collected_batch
+                        step1_collected_batch = (normal.cuda(),
+                                                light_a.cuda(),
+                                                light_b.cuda(),
+                                                albedo.cuda(),
+                                                depth.cuda(),
+                                                canon_mask)
 
-                    data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
-                                                  + f"Batch: {i_b+1}/{len(dataloader)}. "
-                                                  + f"Sub-batch: {batch_index+1}/{len(images)}. "
-                                                  + "Step: 3.")
-                    for _ in range(stages[0]['step3']):
-                        self.optim_step3.zero_grad()
-                        # step 3
-                        loss_step3, _ = self.model.forward_step3(image, latent, collected)
-                        loss_step3.backward()
-                        self.optim_step3.step()
-                        total_it += 1
+                        data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                                    + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                                    + f"Sub-batch: {batch_index+1}/{len(images)}. "
+                                                    + "Step: 2.")
+                        for _ in range(stages[epoch>=self.n_epochs_init]['step2']):
+                            self.optim_step2.zero_grad()
+                            # step 2
+                            loss_step2, collected = self.model.forward_step2(image,
+                                                                            latent,
+                                                                            step1_collected_batch,
+                                                                            self.n_proj_samples)
+                            loss_step2.backward()
+                            self.optim_step2.step()
+                            total_it += 1
 
-                    torch.cuda.empty_cache()
-                    if self.log_wandb:
-                        wandb.log({"epoch": epoch,
-                                   "total_it": total_it,
-                                   "loss_step2": loss_step2,
-                                   "loss_step3": loss_step3,
-                                   "image_num": data_indices})
+                        data_iterator.set_description(f"epoch: {epoch}/{self.n_epochs}. "
+                                                    + f"Batch: {i_b+1}/{len(dataloader)}. "
+                                                    + f"Sub-batch: {batch_index+1}/{len(images)}. "
+                                                    + "Step: 3.")
+                        for _ in range(stages[epoch>=self.n_epochs_init]['step3']):
+                            self.optim_step3.zero_grad()
+                            # step 3
+                            loss_step3, _ = self.model.forward_step3(image, latent, collected)
+                            loss_step3.backward()
+                            self.optim_step3.step()
+                            total_it += 1
+
+                        torch.cuda.empty_cache()
+                        if self.log_wandb:
+                            wandb.log({"epoch": epoch,
+                                    "total_it": total_it,
+                                    "loss_step2": loss_step2,
+                                    "loss_step3": loss_step3,
+                                    "image_num": data_indices})
 
             # if self.plot_intermediate:
             #     if epoch % 20 == 0:
