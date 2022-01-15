@@ -5,23 +5,15 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 Click on each image to find the respective 3D surface plot.
 
 ### Results using the Smoothed Box prior
-![Cat 0 - Smoothed Box](docs/Cat%20-%20Ellipsoid/plotly__im_0.gif) ![Cat 1 - Smoothed Box](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) ![Cat 2 - Smoothed Box](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif)
-<img src="docs/Cat - Smoothed box/plotly__im_0.gif" width="200px">
-<img src="docs/Cat - Smoothed box/plotly__im_1.gif" width="200px">
-<img src="docs/Cat - Smoothed box/plotly__im_2.gif" width="200px">
+| ![Cat 0 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_0.gif) | ![Cat 1 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_1.gif) | ![Cat 2 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_2.gif) |
+| ![Car 0 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_0.gif) | ![Car 4 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_4.gif) | ![Car 5 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_5.gif) |
 
-<img src="docs/Car - Smoothed box/plotly__im_0.gif" width="200px">
-<img src="docs/Car - Smoothed box/plotly__im_4.gif" width="200px">
-<img src="docs/Car - Smoothed box/plotly__im_5.gif" width="200px">
-
+20Smoothed%20box
 ### Results using the ellipsoid prior
-<img src="docs/Cat - Ellipsoid/plotly__im_0.gif" width="200px">
-<img src="docs/Cat - Ellipsoid/plotly__im_1.gif" width="200px">
-<img src="docs/Cat - Ellipsoid/plotly__im_2.gif" width="200px">
-
-<img src="docs/Car - Ellipsoid/plotly__im_0.gif" width="200px">
-<img src="docs/Car - Ellipsoid/plotly__im_4.gif" width="200px">
-<img src="docs/Car - Ellipsoid/plotly__im_5.gif" width="200px">
+| Left-aligned | Center-aligned | Right-aligned |
+| :---         |     :---:      |          ---: |
+| ![Cat 0 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_0.gif) | ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) |
+| ![Car 0 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_0.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) |
 
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
 ```
