@@ -98,14 +98,15 @@ if __name__ == '__main__':
         mask = out.float()
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
-        recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
+        if category in Trainer.CATEGORY2NUMBER:
+            recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
         plotly_3d_animate(recon_depth, texture=recon_im, img_idx=plt_idx, save=True, show=False)
-        
+
     if args.RECORD_LOSS is not None:
         loss_list = np.array(loss_list)
         statistical_box_plot(loss_list)
         mean = np.mean(loss_list)
         std = np.std(loss_list)
         print('mean = ', mean)
-        print('std = ', std )
-        np.save('results/loss_lists/step1_'+ args.RECORD_LOSS +'_model',loss_list)
+        print('std = ', std)
+        np.save('results/loss_lists/step1_' + args.RECORD_LOSS + '_model', loss_list)
