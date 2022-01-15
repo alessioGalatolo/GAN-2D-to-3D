@@ -3,6 +3,7 @@ import matplotlib
 from matplotlib import cm
 import numpy as np
 import plotly.graph_objs as go
+import gif
 plt.axis('equal')
 
 
@@ -48,6 +49,99 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
         fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
         fig.write_html("results/htmls/plotly_" + filename + im_nr_str + ".html")
+    if show:
+        fig.show()
+
+
+def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_idx=None, show=True):
+    depth = recon_depth[0].numpy()
+    if texture is not None:
+        tex = texture[0, 0].numpy()
+        fig = go.Figure(data=[go.Surface(z=-1*depth, surfacecolor=tex, cmin=0)])
+    else:
+        fig = go.Figure(data=[go.Surface(z=-1*depth)])
+
+    x_eye, y_eye, z_eye = 0, 0, 1.5
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(showticklabels=False,
+                       backgroundcolor="rgb(255, 255, 255)",
+                       gridcolor="white",
+                       showbackground=True,
+                       zerolinecolor="white",
+                       title=''),
+            yaxis=dict(showticklabels=False,
+                       backgroundcolor="rgb(255, 255, 255)",
+                       gridcolor="white",
+                       showbackground=True,
+                       zerolinecolor="white",
+                       title=''),
+            zaxis=dict(showticklabels=False,
+                       backgroundcolor="rgb(255, 255, 255)",
+                       gridcolor="white",
+                       showbackground=True,
+                       zerolinecolor="white",
+                       title='')
+            ),
+        scene_camera=dict(
+            up=dict(x=0.05, y=-1, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=x_eye, y=y_eye, z=z_eye)
+            ),
+        margin=dict(l=1, r=1, t=1, b=1),
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        updatemenus=[dict(type='buttons',
+                          showactive=False,
+                          y=1,
+                          x=0.8,
+                          xanchor='left',
+                          yanchor='bottom',
+                          pad=dict(t=45, r=10),
+                          buttons=[dict(label='Play',
+                                        method='animate',
+                                        args=[None, dict(frame=dict(duration=50),
+                                                         transition=dict(duration=0),
+                                                         fromcurrent=True,
+                                                         mode='immediate')])])]
+    )
+    fig.update_traces(showscale=False)
+
+    # for animation
+    frames = []
+    max_dist = 0.75
+    min_dist = -0.75
+    step_dist = 0.025
+    for t in np.arange(min_dist, max_dist, step_dist):
+        frames.append(go.Frame(layout=dict(scene_camera=dict(
+            up=dict(x=0.05, y=-1, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=t, y=y_eye, z=z_eye)
+            ),)))
+    for t in np.arange(min_dist, max_dist, step_dist):
+        frames.append(go.Frame(layout=dict(scene_camera=dict(
+            up=dict(x=0.05, y=-1, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=max_dist+min_dist-t, y=y_eye, z=z_eye)
+            ),)))
+    fig.frames = frames
+    if save:
+        im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
+        fig.write_html(f"results/htmls/plotly_{filename}{im_nr_str}.html")
+
+        # save animation frames
+        @gif.frame
+        def plot(i):
+            layout = fig.layout
+            layout.pop('updatemenus')
+            layout['scene']['camera']['eye'] = fig.frames[i].layout['scene']['camera']['eye']
+            fig_i = go.Figure(data=fig.data, layout=layout)
+            return fig_i
+        gif_frames = []
+        for i in range(len(frames)):
+            gif_frame = plot(i)
+            gif_frames.append(gif_frame)
+
+        gif.save(gif_frames, f'results/plots/plotly_{filename}{im_nr_str}.gif', duration=50)
     if show:
         fig.show()
 
