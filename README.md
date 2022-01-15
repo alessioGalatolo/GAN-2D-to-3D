@@ -6,6 +6,10 @@ Click on each image to find the respective 3D surface plot.
 
 ### Results using the box prior
 
+<object data="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/373813f80cfa9594c8582210c5f5e059880e3b0b/docs/Car%20-%20Ellipsoid/plotly__im_0.html" style="height: 50vh; width: 30vw; align-content: center;"> 
+      Something went wrong while loading the interactive projections, please try changing your browser.
+</object>
+
 <a href="https://alessiogalatolo.github.io/GAN-2D-to-3D/html-stuff/cat_smooth_box_htmls/plotly__im_0.html">
   <img style="float:right" src="https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/ce615ac338907c4e469e6ae4d8267cbe79667684/results/plots/plotly__im_0.png" width="128">
  </a>
