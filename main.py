@@ -106,10 +106,11 @@ def main():
         trainer = GeneralizingTrainer2(**trainer_config)
         # the original method totals = [{'step1': 1300, 'step2': 2200, 'step3': 1800}]
         # hence the choice of the below setting for n_epochs = 100
-        stages = {  False: {'step1': 13, 'step2': 1, 'step3': 1, #initialization epochs
+        stages = {  False:  {'step1': 13, 'step2': 1, 'step3': 1, #initialization epochs
                     'n_init_iterations': config.get('n_init_iterations', 1)}, 
-                    True: {'step1': 1, 'step2': 1, 'step3': 18}, #regular epochs
-                    'n_init_iterations': 1}
+                    True:   {'step1': 1, 'step2': 1, 'step3': 18, #regular epochs
+                    'n_init_iterations': 1} 
+                    }
         if 'image_subset' in config:
             print(">>> Warning, using a subset with a generalizing trainer.")
             print("It is always better to use the whole dataset.<<<")        

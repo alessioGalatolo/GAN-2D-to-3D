@@ -1,7 +1,7 @@
 n_workers: 0
 n_epochs_generalized: 120
 n_epochs_prior: 1000
-n_epochs_init: 20
+n_epochs_init: 10
 n_init_iterations: 8
 gan_size: 256
 channel_multiplier: 1
