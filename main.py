@@ -116,10 +116,16 @@ def main():
             print("It is always better to use the whole dataset.<<<")        
     else:
         trainer = Trainer(**trainer_config)
-        stages = [{'step1': 700, 'step2': 700, 'step3': 600},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400},
-                  {'step1': 200, 'step2': 500, 'step3': 400}]
+        # 1 epoch of step 1 -> n_epochs_init epochs of init iterations -> proceed with the original stages
+        first_stage = [{'step1': 700, 'step2': 0, 'step3': 0, 'n_init_iterations': 0}]
+        init_stages = [{'step1': 1, 'step2': 1, 'step3': 1, #initialization epochs
+                    'n_init_iterations': config.get('n_init_iterations', 1)}] * config.get('n_epochs_init', 1)
+
+        normal_stages = [{'step1': 1, 'step2': 700, 'step3': 600, 'n_init_iterations': 1},
+                        {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1},
+                        {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1},
+                        {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1}]
+        stages = first_stage + init_stages + normal_stages
 
     trainer.fit(images_latents, stages=stages, batch_size=config.get('batch_size', 2))
     return

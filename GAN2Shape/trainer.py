@@ -54,7 +54,7 @@ class Trainer():
             self.model.load_from_checkpoint(paths[-1])
 
     def fit(self, images_latents, plot_depth_map=False,
-            stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
+            stages=[{'step1': 1, 'step2': 1, 'step3': 1, 'n_init_iterations': 1}]*2,
             shuffle=False, **kwargs):
 
         # continue previously started training
@@ -86,8 +86,8 @@ class Trainer():
                 # store the results of previous step (i.e. pseudo imgs, etc.)
                 old_collected = [None]*len(images_latents)
 
-                # -----------------------Step 1, 2 and 3-----------------------
-                for step in [1, 2, 3]:
+                # ---------------------------Step 1----------------------------
+                for step in [1]:
                     if self.debug:
                         logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
                     data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
@@ -114,6 +114,38 @@ class Trainer():
                                        "image_num": data_index})
                     old_collected = current_collected
 
+                step1_collected = current_collected
+                for init_iter in range(stages[stage]['n_init_iterations']):
+                    old_collected = step1_collected
+                    # ------------------------Step 2 and 3-------------------------
+                    for step in [2, 3]:
+                        if self.debug:
+                            logging.info(f"Doing step {step}, stage {stage + 1}/{n_stages}")
+                        data_iterator.set_description(f"Stage: {stage}/{n_stages}. "
+                                                    + f"Image: {data_index+1}/{len(images_latents)}. "
+                                                    + f"Step: {step}. "
+                                                    + f"Init_it: {init_iter+1}/{stages[stage]['n_init_iterations']}. ")
+                        current_collected = [None]*len(images_latents)
+                        optim = getattr(self, f'optim_step{step}')
+                        for _ in tqdm(range(stages[stage][f'step{step}'])):
+                            optim.zero_grad()
+                            collected = old_collected[data_index]
+
+                            loss, collected = getattr(self.model, f'forward_step{step}')\
+                                (image, latent, collected, n_proj_samples=self.n_proj_samples)
+
+                            current_collected[data_index] = collected
+                            loss.backward()
+                            optim.step()
+                            total_it += 1
+
+                            if self.log_wandb:
+                                wandb.log({"stage": stage,
+                                        "total_it": total_it,
+                                        f"loss_step{step}": loss,
+                                        "image_num": data_index})
+                        old_collected = current_collected
+
             if self.plot_intermediate:
                 recon_im, recon_depth = self.model.evaluate_results(image)
                 recon_im, recon_depth = recon_im.cpu(), recon_depth.cpu()
@@ -122,7 +154,7 @@ class Trainer():
                                      im_idx=str(data_index.item()),
                                      stage=str(stage))
 
-            if self.save_ckpts:
+            if self.save_ckpts and stages[stage]['n_init_iterations']==1:
                 self.model.save_checkpoint(data_index, stage, total_it, self.category)
         logging.info('Finished Training')
 
