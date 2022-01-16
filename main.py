@@ -103,6 +103,8 @@ def main():
     }
 
     if args.GENERALIZE:
+        if args.LOAD_PRETRAINED:
+            trainer_config['model_config']['n_epochs_init'] = 0
         trainer = GeneralizingTrainer2(**trainer_config)
         # the original method totals = [{'step1': 1300, 'step2': 2200, 'step3': 1800}]
         # hence the choice of the below setting for n_epochs = 100
