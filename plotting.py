@@ -87,7 +87,7 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
         scene_camera=dict(
             up=dict(x=0.05, y=-1, z=1),
             center=dict(x=0, y=0, z=0),
-            eye=dict(x=x_eye, y=y_eye, z=z_eye)
+            eye=dict(x=x_eye, y=y_eye, z=2)
             ),
         margin=dict(l=1, r=1, t=1, b=1),
         yaxis=dict(scaleanchor="x", scaleratio=1)

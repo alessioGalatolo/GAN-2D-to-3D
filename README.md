@@ -2,11 +2,11 @@
 Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 
 ## Results
-| Cats (Ellipsoid) | Cats (Smoothed Box) | Cars (Ellipsoid) | Cars (Smoothed Box)
-| :---: | :---: | :---: | :---: |
-| ![Cat 0 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_0.gif) | ![Cat 0 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_0.gif) | ![Car 0 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_0.gif) | ![Car 0 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_0.gif) |
-| ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 1 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_1.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 4 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_4.gif) |
-| ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) | ![Cat 2 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_2.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) | ![Car 5 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_5.gif)
+| Cats (Ellipsoid) | Cats (Smoothed Box) | Cars (Ellipsoid) | Cars (Smoothed Box) | Faces (Ellipsoid) |
+| :---: | :---: | :---: | :---: | :---: |
+| ![Cat 0 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_0.gif) | ![Cat 0 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_0.gif) | ![Car 0 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_0.gif) | ![Car 0 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_0.gif) | ![Face 0 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_0.gif) |
+| ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 1 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_1.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 4 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_4.gif) | ![Face 1 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_1.gif) |
+| ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) | ![Cat 2 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_2.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) | ![Car 5 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_5.gif) | ![Face 2 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_2.gif) |
 
 The results are also available interactively at [alessiogalatolo.github.io/GAN-2D-to-3D/](https://alessiogalatolo.github.io/GAN-2D-to-3D/).
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
