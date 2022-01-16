@@ -3,7 +3,7 @@ import matplotlib
 from matplotlib import cm
 import numpy as np
 import plotly.graph_objs as go
-# import gif
+import gif
 plt.axis('equal')
 
 

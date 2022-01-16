@@ -99,7 +99,8 @@ if __name__ == '__main__':
         mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
         recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
-        plotly_3d_animate(recon_depth, texture=recon_im, img_idx=plt_idx, save=True, show=False)
+        # plotly_3d_animate(recon_depth, texture=recon_im, img_idx=plt_idx, save=True, show=False)
+        plotly_3d_depth(recon_depth, texture=recon_im, img_idx=img_idx, save=True, show=False)
         
     if args.RECORD_LOSS is not None:
         loss_list = np.array(loss_list)
