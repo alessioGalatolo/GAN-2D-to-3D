@@ -16,7 +16,7 @@ refinement_iterations: 1
 n_proj_samples: 16
 batch_size: 10
 prior_name: smoothed_box
-image_subset: [0,1,2] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
+image_subset: [0] #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth

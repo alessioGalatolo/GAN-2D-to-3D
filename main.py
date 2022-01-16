@@ -117,11 +117,11 @@ def main():
     else:
         trainer = Trainer(**trainer_config)
         # 1 epoch of step 1 and 2 -> n_epochs_init epochs of init iterations -> proceed with the original stages
-        first_stage = [{'step1': 700, 'step2': 700, 'step3': 0, 'n_init_iterations': 1}]
+        first_stage = [{'step1': 700, 'step2': 0, 'step3': 0, 'n_init_iterations': 0}]
         init_stages = [{'step1': 1, 'step2': 1, 'step3': 1, #initialization epochs
                     'n_init_iterations': config.get('n_init_iterations', 1)}] * config.get('n_epochs_init', 1)
 
-        normal_stages = [{'step1': 1, 'step2': 1, 'step3': 600, 'n_init_iterations': 1},
+        normal_stages = [{'step1': 1, 'step2': 700, 'step3': 600, 'n_init_iterations': 1},
                         {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1},
                         {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1},
                         {'step1': 200, 'step2': 500, 'step3': 400, 'n_init_iterations': 1}]
