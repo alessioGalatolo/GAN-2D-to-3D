@@ -492,6 +492,23 @@ class MaskingModel():
         self.mask_net = self.mask_net.cuda()
         self.mask_net.eval()
 
+    def confidence_mask(self, image, depth=None):
+        with torch.no_grad():
+            # # FIXME: only if car, cat
+            # image = image / 2 + 0.5
+            # image[:, 0].sub_(0.485).div_(0.229)
+            # image[:, 1].sub_(0.456).div_(0.224)
+            # image[:, 2].sub_(0.406).div_(0.225)
+            image_size = image.shape[-1]
+            size = 512 if self.category == 'face' else 473
+            image = utils.resize(image, [size, size])
+            out = self.mask_net(image)
+            category_number = MaskingModel.CATEGORY2NUMBER[self.category]
+            mask = out[:, category_number: category_number+1, ...]
+            mask -= mask.min().item()
+            mask /= mask.max().item()
+            return utils.resize(mask, [image_size, image_size])
+
     def image_mask(self, image, depth=None):
         with torch.no_grad():
             # # FIXME: only if car, cat
@@ -516,12 +533,10 @@ class MaskingModel():
             if not torch.any(mask):
                 logging.warning(f'Did not find any {self.category} in image {image}')
                 mask = torch.ones(out.size(), dtype=torch.bool)
-            mask = mask.float()
-        mask = utils.resize(mask, [image_size, image_size])
         if depth is not None:
-            if self.category in MaskingModel.CATEGORY2NUMBER:
-                depth[0, mask[0, 0] != MaskingModel.CATEGORY2NUMBER[self.category]] = np.NaN
-            elif self.category == 'face':
-                pass
-            return mask, depth
+            depth = utils.resize(depth, [size, size])
+            depth[~(mask[0])] = np.nan
+            mask = depth
+        mask = mask.float()
+        mask = utils.resize(mask, [image_size, image_size])
         return mask

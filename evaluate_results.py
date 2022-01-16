@@ -83,9 +83,9 @@ if __name__ == '__main__':
         # plot_originals(images[img_idx].unsqueeze(0), block=True)
         plot_reconstructions(recon_im, recon_depth, block=False, im_idx=str(plt_idx))
 
-        _, recon_depth = masking_model.image_mask(img1.cuda(), recon_depth)
+        recon_depth = masking_model.image_mask(img1.cuda(), recon_depth)
 
-        plotly_3d_animate(recon_depth, texture=img1, img_idx=plt_idx, save=True, show=False, create_gif=True)
+        plotly_3d_animate(recon_depth, texture=img1, img_idx=plt_idx, save=True, show=False, create_gif=False)
 
     if args.RECORD_LOSS is not None:
         loss_list = np.array(loss_list)
