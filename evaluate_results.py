@@ -87,19 +87,20 @@ if __name__ == '__main__':
 
         size = 473
         img = utils.resize(img1, [size, size])
-        # FIXME: only if car, cat
-        img = img / 2 + 0.5
-        img[:, 0].sub_(0.485).div_(0.229)
-        img[:, 1].sub_(0.456).div_(0.224)
-        img[:, 2].sub_(0.406).div_(0.225)
-        model.mask_net = model.mask_net.cuda()
-        out = model.mask_net(img.cuda())
-        out = out.argmax(dim=1, keepdim=True)
-        mask = out.float()
-        mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
+        # FIXME FIXME FIXME FIXME FIXME
+        # # FIXME: only if car, cat
+        # img = img / 2 + 0.5
+        # img[:, 0].sub_(0.485).div_(0.229)
+        # img[:, 1].sub_(0.456).div_(0.224)
+        # img[:, 2].sub_(0.406).div_(0.225)
+        # model.mask_net = model.mask_net.cuda()
+        # out = model.mask_net(img.cuda())
+        # out = out.argmax(dim=1, keepdim=True)
+        # mask = out.float()
+        # mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
 
-        if category in Trainer.CATEGORY2NUMBER:
-            recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
+        # if category in Trainer.CATEGORY2NUMBER:
+        #     recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
         plotly_3d_animate(recon_depth, texture=img1, img_idx=plt_idx, save=True, show=False)
 
     if args.RECORD_LOSS is not None:

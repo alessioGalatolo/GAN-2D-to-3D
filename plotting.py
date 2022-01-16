@@ -100,18 +100,10 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
     min_dist = -0.75
     step_dist = 0.025
     for t in np.arange(min_dist, max_dist, step_dist):
-        frames.append(go.Frame(layout=dict(scene_camera=dict(
-            up=dict(x=0.05, y=-1, z=1),
-            center=dict(x=0, y=0, z=0),
-            eye=dict(x=t, y=y_eye, z=z_eye)
-            ),)))
+        frames.append(dict(x=t, y=y_eye, z=z_eye))
     for t in np.arange(min_dist, max_dist, step_dist):
-        frames.append(go.Frame(layout=dict(scene_camera=dict(
-            up=dict(x=0.05, y=-1, z=1),
-            center=dict(x=0, y=0, z=0),
-            eye=dict(x=max_dist+min_dist-t, y=y_eye, z=z_eye)
-            ),)))
-    fig.frames = frames
+        frames.append(dict(x=max_dist+min_dist-t, y=y_eye, z=z_eye))
+
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
         fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
@@ -121,7 +113,7 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
         @gif.frame
         def plot(i):
             layout = fig.layout
-            layout['scene']['camera']['eye'] = fig.frames[i].layout['scene']['camera']['eye']
+            layout['scene']['camera']['eye'] = frames[i]
             fig_i = go.Figure(data=fig.data, layout=layout)
             return fig_i
         gif_frames = []
