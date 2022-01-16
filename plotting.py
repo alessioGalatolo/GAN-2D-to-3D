@@ -1,3 +1,4 @@
+from torchvision import transforms
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib import cm
@@ -89,20 +90,7 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
             eye=dict(x=x_eye, y=y_eye, z=z_eye)
             ),
         margin=dict(l=1, r=1, t=1, b=1),
-        yaxis=dict(scaleanchor="x", scaleratio=1),
-        updatemenus=[dict(type='buttons',
-                          showactive=False,
-                          y=1,
-                          x=0.8,
-                          xanchor='left',
-                          yanchor='bottom',
-                          pad=dict(t=45, r=10),
-                          buttons=[dict(label='Play',
-                                        method='animate',
-                                        args=[None, dict(frame=dict(duration=50),
-                                                         transition=dict(duration=0),
-                                                         fromcurrent=True,
-                                                         mode='immediate')])])]
+        yaxis=dict(scaleanchor="x", scaleratio=1)
     )
     fig.update_traces(showscale=False)
 
@@ -126,13 +114,13 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
     fig.frames = frames
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
+        fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
         fig.write_html(f"results/htmls/plotly_{filename}{im_nr_str}.html")
 
         # save animation frames
         @gif.frame
         def plot(i):
             layout = fig.layout
-            layout.pop('updatemenus')
             layout['scene']['camera']['eye'] = fig.frames[i].layout['scene']['camera']['eye']
             fig_i = go.Figure(data=fig.data, layout=layout)
             return fig_i
