@@ -54,7 +54,8 @@ def plotly_3d_depth(recon_depth, texture=None, save=False, filename="", img_idx=
         fig.show()
 
 
-def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_idx=None, show=True):
+def plotly_3d_animate(recon_depth, texture=None, save=False, filename="",
+                      img_idx=None, show=True, create_gif=True):
     depth = recon_depth[0].numpy()
     if texture is not None:
         tex = texture[0, 0].numpy()
@@ -109,19 +110,19 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="", img_id
         fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
         fig.write_html(f"results/htmls/plotly_{filename}{im_nr_str}.html")
 
-        # save animation frames
-        @gif.frame
-        def plot(i):
-            layout = fig.layout
-            layout['scene']['camera']['eye'] = frames[i]
-            fig_i = go.Figure(data=fig.data, layout=layout)
-            return fig_i
-        gif_frames = []
-        for i in range(len(frames)):
-            gif_frame = plot(i)
-            gif_frames.append(gif_frame)
-
-        gif.save(gif_frames, f'results/plots/plotly_{filename}{im_nr_str}.gif', duration=50)
+        if create_gif:
+            # save animation frames
+            @gif.frame
+            def plot(i):
+                layout = fig.layout
+                layout['scene']['camera']['eye'] = frames[i]
+                fig_i = go.Figure(data=fig.data, layout=layout)
+                return fig_i
+            gif_frames = []
+            for i in range(len(frames)):
+                gif_frame = plot(i)
+                gif_frames.append(gif_frame)
+            gif.save(gif_frames, f'results/plots/plotly_{filename}{im_nr_str}.gif', duration=50)
     if show:
         fig.show()
 

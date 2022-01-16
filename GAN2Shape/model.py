@@ -3,6 +3,7 @@ from glob import glob
 import logging
 import datetime
 import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -467,3 +468,60 @@ class ViewLightSampler():
             samples.append(self._sample(sample_type))
         samples = torch.cat(samples, dim=0)
         return samples
+
+
+class MaskingModel():
+    CATEGORIES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
+                  'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
+                  'horse', 'motorbike', 'person', 'pottedplant',
+                  'sheep', 'sofa', 'train', 'tvmonitor']  # FIXME: add face
+    CATEGORY2NUMBER = {category: i+1 for i, category in enumerate(CATEGORIES)}
+
+    def __init__(self, category):
+        # parsing/masking model
+        self.category = category
+        if category == 'face':
+            self.mask_net = networks.BiSeNet(n_classes=19)
+            self.mask_net.load_state_dict(torch.load('checkpoints/parsing/bisenet.pth'))
+        else:
+            self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False)
+            temp = torch.nn.DataParallel(self.mask_net)
+            checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
+            temp.load_state_dict(checkpoint['state_dict'], strict=False)
+            self.mask_net = temp.module
+        self.mask_net = self.mask_net.cuda()
+        self.mask_net.eval()
+
+    def image_mask(self, image, depth=None):
+        with torch.no_grad():
+            # # FIXME: only if car, cat
+            # image = image / 2 + 0.5
+            # image[:, 0].sub_(0.485).div_(0.229)
+            # image[:, 1].sub_(0.456).div_(0.224)
+            # image[:, 2].sub_(0.406).div_(0.225)
+            image_size = image.shape[-1]
+            size = 512 if self.category == 'face' else 473
+            image = utils.resize(image, [size, size])
+            out = self.mask_net(image)
+            out = out.argmax(dim=1, keepdim=True)
+            if self.category in MaskingModel.CATEGORIES:
+                mask = (out == MaskingModel.CATEGORY2NUMBER[self.category])
+            elif self.category == 'face':
+                mask_all = ((out >= 1) == (out != 16)).float()
+                mask_face = ((out >= 1) == (out <= 13)).float()
+                mask = (mask_all + mask_face) / 2
+            else:
+                mask = torch.ones(out.size(), dtype=torch.bool)
+
+            if not torch.any(mask):
+                logging.warning(f'Did not find any {self.category} in image {image}')
+                mask = torch.ones(out.size(), dtype=torch.bool)
+            mask = mask.float()
+        mask = utils.resize(mask, [image_size, image_size])
+        if depth is not None:
+            if self.category in MaskingModel.CATEGORY2NUMBER:
+                depth[0, mask[0, 0] != MaskingModel.CATEGORY2NUMBER[self.category]] = np.NaN
+            elif self.category == 'face':
+                pass
+            return mask, depth
+        return mask

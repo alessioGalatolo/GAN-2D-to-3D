@@ -2,10 +2,9 @@ import argparse
 import yaml
 from torchvision import transforms
 from torch import cuda
-from GAN2Shape.model import GAN2Shape
+from GAN2Shape.model import GAN2Shape, MaskingModel
 from GAN2Shape.dataset import ImageDataset
 from GAN2Shape import utils
-from GAN2Shape.trainer import Trainer
 import numpy as np
 from plotting import *
 from tqdm import tqdm
@@ -44,17 +43,16 @@ if __name__ == '__main__':
             ]
         )
     subset = config.get('image_subset', None)
-    # subset = np.arange(11,211,1)
-    config['transform'] = transform
-    images = ImageDataset(config.get('root_path'), transform=transform,
-                          subset=subset)
-    model = GAN2Shape(config)
-
     category = config.get('category')
     base_path = config.get('our_nets_ckpts')['VLADE_nets']
     stage = config.get('stage', '*')
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
+
+    images = ImageDataset(config.get('root_path'), transform=transform,
+                          subset=subset)
+    model = GAN2Shape(config)
+    masking_model = MaskingModel(category)
 
     if not args.GENERALIZE:
         generator = model.load_from_checkpoints(base_path, category)
@@ -85,23 +83,9 @@ if __name__ == '__main__':
         # plot_originals(images[img_idx].unsqueeze(0), block=True)
         plot_reconstructions(recon_im, recon_depth, block=False, im_idx=str(plt_idx))
 
-        size = 473
-        img = utils.resize(img1, [size, size])
-        # FIXME FIXME FIXME FIXME FIXME
-        # # FIXME: only if car, cat
-        # img = img / 2 + 0.5
-        # img[:, 0].sub_(0.485).div_(0.229)
-        # img[:, 1].sub_(0.456).div_(0.224)
-        # img[:, 2].sub_(0.406).div_(0.225)
-        # model.mask_net = model.mask_net.cuda()
-        # out = model.mask_net(img.cuda())
-        # out = out.argmax(dim=1, keepdim=True)
-        # mask = out.float()
-        # mask = utils.resize(mask, [img1.shape[-1], img1.shape[-1]])
+        _, recon_depth = masking_model.image_mask(img1.cuda(), recon_depth)
 
-        # if category in Trainer.CATEGORY2NUMBER:
-        #     recon_depth[0, mask[0, 0] != Trainer.CATEGORY2NUMBER[category]] = np.NaN
-        plotly_3d_animate(recon_depth, texture=img1, img_idx=plt_idx, save=True, show=False)
+        plotly_3d_animate(recon_depth, texture=img1, img_idx=plt_idx, save=True, show=False, create_gif=True)
 
     if args.RECORD_LOSS is not None:
         loss_list = np.array(loss_list)
