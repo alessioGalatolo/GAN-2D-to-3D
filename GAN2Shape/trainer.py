@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from plotting import plot_predicted_depth_map, plot_reconstructions
 from GAN2Shape import utils
+from GAN2Shape import networks
 try:
     import wandb
 except ImportError:
@@ -38,6 +39,20 @@ class Trainer():
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
+
+        # parsing/masking model
+        if self.category == 'face':
+            self.mask_net = networks.BiSeNet(n_classes=19)
+            self.mask_net.load_state_dict(torch.load('checkpoints/parsing/bisenet.pth'))
+        else:
+            self.mask_net = networks.PSPNet(layers=50, classes=21, pretrained=False)
+            temp = torch.nn.DataParallel(self.mask_net)
+            checkpoint = torch.load('checkpoints/parsing/pspnet_voc.pth')
+            temp.load_state_dict(checkpoint['state_dict'], strict=False)
+            self.mask_net = temp.module
+        self.mask_net = self.mask_net.cuda()
+        self.mask_net.eval()
+
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
         self.optim_step2 = Trainer.default_optimizer([self.model.offset_encoder_net],
@@ -50,12 +65,14 @@ class Trainer():
 
         self.load_dict = load_dict
         if load_dict is not None:
-            paths, _ = self.model.build_checkpoint_path(load_dict['base_path'], load_dict['category'], general=True)
+            paths, _ = self.model.build_checkpoint_path(load_dict['base_path'],
+                                                        load_dict['category'],
+                                                        general=True)
             self.model.load_from_checkpoint(paths[-1])
 
     def fit(self, images_latents, plot_depth_map=False,
             stages=[{'step1': 1, 'step2': 1, 'step3': 1}]*2,
-            shuffle=False, **kwargs):
+            shuffle=False, **_):
 
         # continue previously started training
 
@@ -254,11 +271,11 @@ class Trainer():
         with torch.no_grad():
             size = 473
             image = utils.resize(image, [size, size])
-            # FIXME: only if car, cat
-            image = image / 2 + 0.5
-            image[:, 0].sub_(0.485).div_(0.229)
-            image[:, 1].sub_(0.456).div_(0.224)
-            image[:, 2].sub_(0.406).div_(0.225)
+            # # FIXME: only if car, cat
+            # image = image / 2 + 0.5
+            # image[:, 0].sub_(0.485).div_(0.229)
+            # image[:, 1].sub_(0.456).div_(0.224)
+            # image[:, 2].sub_(0.406).div_(0.225)
             out = self.model.mask_net(image)
             out = out.argmax(dim=1, keepdim=True)
             if self.category in Trainer.CATEGORIES:
