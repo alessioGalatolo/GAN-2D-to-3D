@@ -1,11 +1,9 @@
-import math
 import logging
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from GAN2Shape.model import MaskingModel
+from GAN2Shape.priors import PriorGenerator
 from plotting import plot_predicted_depth_map, plot_reconstructions
-from GAN2Shape import utils
 try:
     import wandb
 except ImportError:
@@ -29,13 +27,15 @@ class Trainer():
         self.n_epochs_prior = model_config.get('n_epochs_prior', 1000)
         self.n_workers = model_config.get('n_workers', 0)
         self.learning_rate = model_config.get('learning_rate', 1e-4)
-        self.prior_name = model_config.get('prior_name', "box")
         self.plot_intermediate = plot_intermediate
         self.log_wandb = log_wandb
         self.save_ckpts = save_ckpts
         self.debug = debug
 
-        self.masking_model = MaskingModel(self.category)
+        self.prior_generator = PriorGenerator(self.image_size,
+                                              self.category,
+                                              model_config.get('prior_name',
+                                                               'ellipsoid'))
 
         self.optim_step1 = Trainer.default_optimizer([self.model.albedo_net],
                                                      lr=self.learning_rate)
@@ -131,7 +131,7 @@ class Trainer():
         optim = Trainer.default_optimizer([self.model.depth_net])
         train_loss = []
         logging.info("Pretraining depth net on prior shape")
-        prior = self.prior_shape(image, shape=self.prior_name)
+        prior = self.prior_generator(image)
 
         if plot_depth_map:
             plt_prior = prior.unsqueeze(0).detach().cpu().numpy()
@@ -159,97 +159,6 @@ class Trainer():
             depth = depth.detach().cpu().numpy()
             plot_predicted_depth_map(depth, self.image_size, block=True)
         return train_loss
-
-    def prior_shape(self, image, shape="box", map_location='gpu'):
-        # FIXME: should probably move to its own file since its getting long
-        with torch.no_grad():
-            height, width = self.image_size, self.image_size
-            center_x, center_y = int(width / 2), int(height / 2)
-            near = 0.91
-            far = 1.02
-            noise_treshold = 0.7
-            prior = torch.Tensor(1, height, width).fill_(far)
-            if shape == "box":
-                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
-                prior = torch.zeros([1, height, width])
-                prior[0,
-                      center_x-box_width: center_x+box_width,
-                      center_y-box_height: center_y+box_height] = 1
-                prior = prior
-            elif shape == "masked_box":
-                # same as box but only project object
-                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
-                mask = self.masking_model.image_mask(image)[0].cpu()
-
-                # cut noise in mask
-                noise = mask < noise_treshold
-                mask[noise] = 0
-                mask = (mask - noise_treshold) / (1 - noise_treshold)
-
-                prior = far - prior * mask
-
-            elif shape == "smoothed_box":
-                # Smoothed masked_box
-                box_height, box_width = int(height*0.5*0.5), int(width*0.8*0.5)
-                mask = self.masking_model.image_mask(image)[0].cpu()
-
-                # cut noise in mask
-                noise = mask < noise_treshold
-                mask[noise] = 0
-                mask = (mask - noise_treshold) / (1 - noise_treshold)
-
-                prior = far - prior * mask
-
-                # Smoothing through repeated convolution
-                kernel_size = 11
-                pad = 5
-                n_convs = 3
-                conv = torch.nn.Conv2d(in_channels=1, out_channels=1,
-                                       kernel_size=kernel_size, stride=1,
-                                       padding=0)
-                filt = torch.ones(1, 1, kernel_size, kernel_size)
-                filt = filt / torch.norm(filt)
-                conv.weight = torch.nn.Parameter(filt)
-                prior = prior.unsqueeze(0)
-                for i in range(n_convs):
-                    prior = conv(prior)
-                    # Rescale depth values to appropriate range
-                    prior = near + ((prior - torch.min(prior))*(far - near))\
-                        / (torch.max(prior) - torch.min(prior))
-                    # Pad result with 'far' to keep the image size
-                    prior = torch.nn.functional.pad(prior, tuple([pad]*4), value=far)
-
-                prior = prior.squeeze(0)
-
-            elif shape == "ellipsoid":
-                radius = 0.4
-                mask = self.masking_model.image_mask(image)[0, 0] >= noise_treshold
-                max_y, min_y, max_x, min_x = utils.get_mask_range(mask)
-
-                # if self.category in ['car', 'church']:
-                #     max_y = max_y + (max_y - min_y) / 6
-
-                r_pixel = (max_x - min_x) / 2
-                ratio = (max_y - min_y) / (max_x - min_x)
-                c_x = (max_x + min_x) / 2
-                c_y = (max_y + min_y) / 2
-
-                i, j = torch.meshgrid(torch.linspace(0, width-1, width),
-                                      torch.linspace(0, height-1, height))
-                i = (i - height/2) / ratio + height/2
-                temp = math.sqrt(radius**2 - (radius - (far - near))**2)
-                dist = torch.sqrt((i - c_y)**2 + (j - c_x)**2)
-                area = dist <= r_pixel
-                dist_rescale = dist / r_pixel * temp
-                depth = radius - torch.sqrt(torch.abs(radius ** 2 - dist_rescale ** 2)) + near
-                prior[0, area] = depth[area]
-            else:
-                prior = torch.ones([1, height, width])
-
-            if map_location == 'gpu':
-                return prior.cuda()
-            elif map_location == 'cpu':
-                return prior.cpu()
 
     @staticmethod
     def default_optimizer(model_list, lr=1e-4, betas=(0.9, 0.999), weight_decay=5e-4):
@@ -398,7 +307,7 @@ class GeneralizingTrainer(Trainer):
         for img in data_iterator_priors:
             image, _, img_idx = img
             image = image.cuda()
-            prior = self.prior_shape(image, shape=self.prior_name, map_location='cpu')
+            prior = self.prior_generator(image, device='cpu')
             priors[img_idx] = prior
 
         data_iterator.set_description("Pretraining depth net")
