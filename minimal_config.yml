@@ -6,6 +6,7 @@ z_dim: 512
 learning_rate: 0.0001
 view_scale: 1
 batch_size: 32
+root_path: data
 prior_name: smoothed_confidence
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth

@@ -1,4 +1,4 @@
 channel_multiplier: 1
 gan_size: 128
-gan_ckpt: checkpoints/stylegan2/stylegan2-celeba-config-e.pt
+gan_ckpt_path: checkpoints/stylegan2/stylegan2-celeba-config-e.pt
 n_proj_samples: 16

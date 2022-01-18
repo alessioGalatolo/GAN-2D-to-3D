@@ -42,4 +42,4 @@ for _, dirs, _ in os.walk("data"):
                     except shutil.SameFileError:
                         pass
 
-# todo rename celeba into face
+os.rename("data/celeba", "data/face")

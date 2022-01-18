@@ -1,5 +1,6 @@
 import argparse
 import yaml
+from os import path
 from torchvision import transforms
 from torch import cuda
 from GAN2Shape.trainer import Trainer, GeneralizingTrainer, GeneralizingTrainer2
@@ -48,6 +49,13 @@ def main():
                         action='store_true',
                         default=False,
                         help='If to run training procedure that favors generalization')
+    parser.add_argument("--images",
+                        dest="IMAGES",
+                        action="append",
+                        type=int,
+                        default=None,
+                        nargs="+",
+                        help="Image numbers on which to run the method")
     args = parser.parse_args()
 
     if not cuda.is_available():
@@ -55,12 +63,18 @@ def main():
         exit(1)
 
     if args.CATEGORY is not None:
-        # TODO: read minimal + add specific
-        ...
-
-    # read configuration
-    with open(args.CONFIG, 'r') as config_file:
-        config = yaml.safe_load(config_file)
+        category = args.CATEGORY
+        with open('minimal_config.yml', 'r') as minimal_config_file,\
+             open(path.join("configs", f'{category}.yml'), 'r') as specific_config_file:
+            minimal_config = yaml.safe_load(minimal_config_file)
+            specific_config = yaml.safe_load(specific_config_file)
+            config = {**minimal_config, **specific_config}  # python 3.5+
+            config['category'] = category
+    else:
+        # read given configuration
+        with open(args.CONFIG, 'r') as config_file:
+            config = yaml.safe_load(config_file)
+            category = config.get('category')
 
     if args.WANDB:
         import wandb
@@ -97,11 +111,13 @@ def main():
         print("If this is a real run you want to rerun with --save-ckpts <<<")
         time.sleep(0.5)
 
-    # todo fix root
-    images_latents = ImageLatentDataset(config.get('root_path'),
+    data_folder = path.join(config.get('root_path'), category)
+    subset = args.IMAGES
+    if subset is not None:
+        subset = [image for image_list in subset for image in image_list]
+    images_latents = ImageLatentDataset(data_folder,
                                         transform=transform,
-                                        subset=config.get('image_subset', None)
-                                        )
+                                        subset=subset)
 
     # set configuration
     trainer_config = {
@@ -117,7 +133,7 @@ def main():
         # hence the choice of the below setting for n_epochs = 100
         stages = [{'step1': 13, 'step2': 22, 'step3': 18}]
         # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
-        if 'image_subset' in config:
+        if subset is not None:
             print(">>> Warning, using a subset with a generalizing trainer.")
             print("It is always better to use the whole dataset.<<<")
     else:
@@ -126,6 +142,7 @@ def main():
                   {'step1': 200, 'step2': 500, 'step3': 400},
                   {'step1': 200, 'step2': 500, 'step3': 400},
                   {'step1': 200, 'step2': 500, 'step3': 400}]
+    stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
 
     trainer.fit(images_latents, stages=stages, batch_size=config.get('batch_size', 2))
     return
