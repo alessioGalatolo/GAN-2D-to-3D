@@ -140,7 +140,7 @@ def plt_3d_depth(depth, image_size, block=False):
 
 
 def plot_predicted_depth_map(depth, image_size, img_idx=None, block=False, save=False, filename=""):
-    plt_3d_depth(depth, image_size)
+    plt_3d_depth(depth, image_size, block)
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
         plt.savefig("results/plots/" + filename + im_nr_str +  ".png")

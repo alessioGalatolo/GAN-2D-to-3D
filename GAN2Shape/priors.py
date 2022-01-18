@@ -44,10 +44,7 @@ class PriorGenerator():
         prior = self.far - self.base_prior * mask
         return prior
 
-    def _smoothed_box_prior(self, image):
-        # Smoothed masked_box
-        prior = self._masked_box_prior(image)
-
+    def _smooth(self, prior):
         # Smoothing through repeated convolution
         kernel_size = 11
         pad = 5
@@ -59,7 +56,7 @@ class PriorGenerator():
         filt = filt / torch.norm(filt)
         conv.weight = torch.nn.Parameter(filt)
         prior = prior.unsqueeze(0)
-        for i in range(n_convs):
+        for _ in range(n_convs):
             prior = conv(prior)
             # Rescale depth values to appropriate range
             prior = self.near + ((prior - torch.min(prior))*(self.far - self.near))\
@@ -68,6 +65,11 @@ class PriorGenerator():
             prior = torch.nn.functional.pad(prior, tuple([pad]*4), value=self.far)
 
         return prior.squeeze(0)
+
+    def _smoothed_box_prior(self, image):
+        # Smoothed masked_box
+        prior = self._masked_box_prior(image)
+        return self._smooth(prior)
 
     def _ellipsoid_prior(self, image):
         radius = 0.4
@@ -93,3 +95,13 @@ class PriorGenerator():
         prior = torch.clone(self.base_prior)
         prior[0, area] = depth[area]
         return prior
+
+    def _confidence_prior(self, image):
+        mask = self.masking_model.confidence_mask(image)[0].cpu()
+
+        prior = self.far - self.base_prior * mask
+        return prior
+
+    def _smoothed_confidence_prior(self, image):
+        prior = self._confidence_prior(image)
+        return self._smooth(prior)

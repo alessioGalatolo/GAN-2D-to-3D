@@ -503,8 +503,15 @@ class MaskingModel():
             size = 512 if self.category == 'face' else 473
             image = utils.resize(image, [size, size])
             out = self.mask_net(image)
-            category_number = MaskingModel.CATEGORY2NUMBER[self.category]
-            mask = out[:, category_number: category_number+1, ...]
+            if self.category in MaskingModel.CATEGORIES:
+                category_number = MaskingModel.CATEGORY2NUMBER[self.category]
+                mask = out[:, category_number: category_number+1, ...]
+            elif self.category == 'face':
+                mask = torch.sum(out[:, 1:13, ...], dim=1, keepdim=True)
+            else:
+                out = out[:, 0:1, ...]
+                mask = torch.ones(out.size())
+
             mask -= mask.min().item()
             mask /= mask.max().item()
             return utils.resize(mask, [image_size, image_size])
@@ -520,13 +527,15 @@ class MaskingModel():
             size = 512 if self.category == 'face' else 473
             image = utils.resize(image, [size, size])
             out = self.mask_net(image)
-            out = out.argmax(dim=1, keepdim=True)
             if self.category in MaskingModel.CATEGORIES:
+                out = out.argmax(dim=1, keepdim=True)
                 mask = (out == MaskingModel.CATEGORY2NUMBER[self.category])
             elif self.category == 'face':
-                mask_all = ((out >= 1) == (out != 16)).float()
-                mask_face = ((out >= 1) == (out <= 13)).float()
-                mask = (mask_all + mask_face) / 2
+                out = torch.cat((out[:, :17, ...], out[:, 18:, ...]), dim=1)
+                out = out.argmax(dim=1, keepdim=True)
+                mask_all = ((out >= 1) == (out != 16))
+                mask_face = ((out >= 1) == (out <= 13))
+                mask = (mask_all & mask_face)
             else:
                 mask = torch.ones(out.size(), dtype=torch.bool)
 
