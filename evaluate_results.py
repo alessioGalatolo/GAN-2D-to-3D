@@ -49,6 +49,7 @@ if __name__ == '__main__':
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
 
+    # todo fix root
     images = ImageDataset(config.get('root_path'), transform=transform,
                           subset=subset)
     model = GAN2Shape(config)

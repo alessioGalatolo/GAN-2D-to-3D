@@ -41,3 +41,5 @@ for _, dirs, _ in os.walk("data"):
                             shutil.copyfileobj(src, dest)
                     except shutil.SameFileError:
                         pass
+
+# todo rename celeba into face

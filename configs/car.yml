@@ -1,0 +1,4 @@
+channel_multiplier: 2
+gan_size: 512
+gan_ckpt: checkpoints/stylegan2/stylegan2-car-config-f.pt
+n_proj_samples: 8

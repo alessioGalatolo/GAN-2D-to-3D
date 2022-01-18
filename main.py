@@ -16,6 +16,10 @@ def main():
                         dest='CONFIG',
                         default='config.yml',
                         help='path of the config yaml file')
+    parser.add_argument('--category',
+                        dest='CATEGORY',
+                        default=None,
+                        help='The object on which to run GAN2Shape, will use adequate config files')
     parser.add_argument('--wandb',
                         dest='WANDB',
                         action='store_true',
@@ -49,6 +53,10 @@ def main():
     if not cuda.is_available():
         print("A CUDA-enables GPU is required to run this model")
         exit(1)
+
+    if args.CATEGORY is not None:
+        # TODO: read minimal + add specific
+        ...
 
     # read configuration
     with open(args.CONFIG, 'r') as config_file:
@@ -89,6 +97,7 @@ def main():
         print("If this is a real run you want to rerun with --save-ckpts <<<")
         time.sleep(0.5)
 
+    # todo fix root
     images_latents = ImageLatentDataset(config.get('root_path'),
                                         transform=transform,
                                         subset=config.get('image_subset', None)
