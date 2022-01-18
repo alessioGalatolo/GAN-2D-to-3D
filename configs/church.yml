@@ -1,0 +1,4 @@
+channel_multiplier: 2
+gan_size: 256
+gan_ckpt_path: checkpoints/stylegan2/stylegan2-church-config-f.pt
+n_proj_samples: 1

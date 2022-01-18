@@ -11,10 +11,9 @@ root_path: data
 learning_rate: 0.0001
 view_scale: 1
 refinement_iterations: 1
-n_proj_samples: 1
+n_proj_samples: 8
 batch_size: 32
-prior_name: smoothed_box
-image_subset: [0]
+prior_name: smoothed_confidence
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
 light_mvn_path: checkpoints/view_light/light_mvn.pth
