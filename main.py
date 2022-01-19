@@ -21,6 +21,10 @@ def main():
                         dest='CATEGORY',
                         default=None,
                         help='The object on which to run GAN2Shape, will use adequate config files')
+    parser.add_argument('--prior',
+                        dest='PRIOR',
+                        default=None,
+                        help='The prior to use, this will override the config one')
     parser.add_argument('--wandb',
                         dest='WANDB',
                         action='store_true',
@@ -75,6 +79,9 @@ def main():
         with open(args.CONFIG, 'r') as config_file:
             config = yaml.safe_load(config_file)
             category = config.get('category')
+
+    if args.PRIOR is not None:
+        config['prior_name'] = args.PRIOR
 
     if args.WANDB:
         import wandb
