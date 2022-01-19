@@ -142,7 +142,6 @@ def main():
                   {'step1': 200, 'step2': 500, 'step3': 400},
                   {'step1': 200, 'step2': 500, 'step3': 400},
                   {'step1': 200, 'step2': 500, 'step3': 400}]
-    stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
 
     trainer.fit(images_latents, stages=stages, batch_size=config.get('batch_size', 2))
     return

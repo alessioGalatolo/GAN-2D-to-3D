@@ -1,5 +1,6 @@
 import argparse
 import yaml
+from os import path
 from torchvision import transforms
 from torch import cuda
 from GAN2Shape.model import GAN2Shape, MaskingModel
@@ -10,14 +11,12 @@ from plotting import *
 from tqdm import tqdm
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Evaluate GAN 2D to 3D shape')
-    # parser.add_argument('--ckpt_path',
-    #                     dest='CKPT_PATH',
-    #                     help='path of the saved weights')
-    parser.add_argument('--config-file',
-                        dest='CONFIG',
-                        default='config.yml',
-                        help='path of the config yaml file')
+    parser = argparse.ArgumentParser(description='Evaluate GAN 2D to 3D shape')   
+    parser.add_argument('--category',
+                        dest='CATEGORY',
+                        required=True,
+                        default=None,
+                        help='The object on which to run GAN2Shape, will use adequate config files')
     parser.add_argument('--generalize',
                         dest='GENERALIZE',
                         action='store_true',
@@ -27,10 +26,25 @@ if __name__ == '__main__':
                         dest='RECORD_LOSS',
                         default=None,
                         help='Set to "filename" (not full path) to save the step1 loss list in "results/loss_lists/filename"')
+    parser.add_argument("--images",
+                        dest="IMAGES",
+                        action="append",
+                        type=int,
+                        default=None,
+                        nargs="+",
+                        help="Image numbers on which to run the method")
+
     args = parser.parse_args()
+    category = args.CATEGORY
+
     # read configuration
-    with open(args.CONFIG, 'r') as config_file:
-        config = yaml.safe_load(config_file)
+    with open('minimal_config.yml', 'r') as minimal_config_file,\
+         open(path.join("configs", f'{category}.yml'), 'r') as specific_config_file:
+        minimal_config = yaml.safe_load(minimal_config_file)
+        specific_config = yaml.safe_load(specific_config_file)
+        config = {**minimal_config, **specific_config}  # python 3.5+
+        config['category'] = category
+
     if not cuda.is_available():
         print("A CUDA-enables GPU is required to run this model")
         exit(1)
@@ -42,15 +56,17 @@ if __name__ == '__main__':
                 transforms.ToTensor()
             ]
         )
-    subset = config.get('image_subset', None)
-    category = config.get('category')
     base_path = config.get('our_nets_ckpts')['VLADE_nets']
     stage = config.get('stage', '*')
     iteration = config.get('iteration', '*')
     time = config.get('time', '*')
 
-    # todo fix root
-    images = ImageDataset(config.get('root_path'), transform=transform,
+    data_folder = path.join(config.get('root_path'), category)
+    subset = args.IMAGES
+    if subset is not None:
+        subset = [image for image_list in subset for image in image_list]
+    images = ImageDataset(data_folder,
+                          transform=transform,
                           subset=subset)
     model = GAN2Shape(config)
     masking_model = MaskingModel(category)
