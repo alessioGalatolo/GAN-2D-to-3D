@@ -1,3 +1,4 @@
+from datetime import datetime
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import matplotlib
@@ -107,8 +108,10 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="",
 
     if save:
         im_nr_str = "" if img_idx is None else "_im_" + str(img_idx)
-        fig.write_image("results/plots/plotly_" + filename + im_nr_str + ".png")
-        fig.write_html(f"results/htmls/plotly_{filename}{im_nr_str}.html")
+        now = datetime.now().strftime("%Y_%m_%d_%H_%M")
+        base_name = f"{filename}{im_nr_str}_{now}"
+        fig.write_image(f"results/plots/plotly_{base_name}.png")
+        fig.write_html(f"results/htmls/plotly_{base_name}.html")
 
         if create_gif:
             # save animation frames
@@ -122,7 +125,7 @@ def plotly_3d_animate(recon_depth, texture=None, save=False, filename="",
             for i in range(len(frames)):
                 gif_frame = plot(i)
                 gif_frames.append(gif_frame)
-            gif.save(gif_frames, f'results/plots/plotly_{filename}{im_nr_str}.gif', duration=50)
+            gif.save(gif_frames, f'results/plots/plotly_{base_name}.gif', duration=50)
     if show:
         fig.show()
 
