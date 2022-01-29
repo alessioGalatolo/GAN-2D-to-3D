@@ -1,17 +1,12 @@
 n_workers: 0
 n_epochs_generalized: 100
 n_epochs_prior: 1000
-gan_size: 512
-channel_multiplier: 2
 image_size: 128
 z_dim: 512
-category: car
-gan_ckpt_path: checkpoints/stylegan2/stylegan2-car-config-e.pt
-root_path: data
 learning_rate: 0.0001
 view_scale: 1
-n_proj_samples: 8
 batch_size: 32
+root_path: data
 prior_name: smoothed_confidence
 ## View-Light sampler checkpoints
 view_mvn_path: checkpoints/view_light/view_mvn.pth
@@ -25,3 +20,4 @@ our_nets_ckpts:
 rot_center_depth: 1.0
 fov: 10  # in degrees
 tex_cube_size: 2
+

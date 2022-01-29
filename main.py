@@ -1,5 +1,6 @@
 import argparse
 import yaml
+from os import path
 from torchvision import transforms
 from torch import cuda
 from GAN2Shape.trainer import Trainer, GeneralizingTrainer, GeneralizingTrainer2
@@ -16,6 +17,14 @@ def main():
                         dest='CONFIG',
                         default='config.yml',
                         help='path of the config yaml file')
+    parser.add_argument('--category',
+                        dest='CATEGORY',
+                        default=None,
+                        help='The object on which to run GAN2Shape, will use adequate config files')
+    parser.add_argument('--prior',
+                        dest='PRIOR',
+                        default=None,
+                        help='The prior to use, this will override the config one')
     parser.add_argument('--wandb',
                         dest='WANDB',
                         action='store_true',
@@ -44,15 +53,35 @@ def main():
                         action='store_true',
                         default=False,
                         help='If to run training procedure that favors generalization')
+    parser.add_argument("--images",
+                        dest="IMAGES",
+                        action="append",
+                        type=int,
+                        default=None,
+                        nargs="+",
+                        help="Image numbers on which to run the method")
     args = parser.parse_args()
 
     if not cuda.is_available():
         print("A CUDA-enables GPU is required to run this model")
         exit(1)
 
-    # read configuration
-    with open(args.CONFIG, 'r') as config_file:
-        config = yaml.safe_load(config_file)
+    if args.CATEGORY is not None:
+        category = args.CATEGORY
+        with open('minimal_config.yml', 'r') as minimal_config_file,\
+             open(path.join("configs", f'{category}.yml'), 'r') as specific_config_file:
+            minimal_config = yaml.safe_load(minimal_config_file)
+            specific_config = yaml.safe_load(specific_config_file)
+            config = {**minimal_config, **specific_config}  # python 3.5+
+            config['category'] = category
+    else:
+        # read given configuration
+        with open(args.CONFIG, 'r') as config_file:
+            config = yaml.safe_load(config_file)
+            category = config.get('category')
+
+    if args.PRIOR is not None:
+        config['prior_name'] = args.PRIOR
 
     if args.WANDB:
         import wandb
@@ -89,10 +118,13 @@ def main():
         print("If this is a real run you want to rerun with --save-ckpts <<<")
         time.sleep(0.5)
 
-    images_latents = ImageLatentDataset(config.get('root_path'),
+    data_folder = path.join(config.get('root_path'), category)
+    subset = args.IMAGES
+    if subset is not None:
+        subset = [image for image_list in subset for image in image_list]
+    images_latents = ImageLatentDataset(data_folder,
                                         transform=transform,
-                                        subset=config.get('image_subset', None)
-                                        )
+                                        subset=subset)
 
     # set configuration
     trainer_config = {
@@ -108,7 +140,7 @@ def main():
         # hence the choice of the below setting for n_epochs = 100
         stages = [{'step1': 13, 'step2': 22, 'step3': 18}]
         # stages = [{'step1': 1, 'step2': 1, 'step3': 1}]
-        if 'image_subset' in config:
+        if subset is not None:
             print(">>> Warning, using a subset with a generalizing trainer.")
             print("It is always better to use the whole dataset.<<<")
     else:

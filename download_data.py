@@ -7,10 +7,8 @@ import os
 print("Downloading data...", flush=True)
 urllib.request.urlretrieve('https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/data.tar.gz', "data.tar.gz")
 parts = [f'x0{i}' for i in range(4)]
-urllib.request.urlretrieve('https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/x00', 'x00')
-urllib.request.urlretrieve('https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/x01', 'x01')
-urllib.request.urlretrieve('https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/x02', 'x02')
-urllib.request.urlretrieve('https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/x03', 'x03')
+for part in parts:
+    urllib.request.urlretrieve(f'https://github.com/XingangPan/GAN2Shape/releases/download/v1.0/{part}', part)
 
 print("Data downloaded, saving it...", flush=True)
 with open('x0.tar.gz', 'wb') as dest:
@@ -41,3 +39,5 @@ for _, dirs, _ in os.walk("data"):
                             shutil.copyfileobj(src, dest)
                     except shutil.SameFileError:
                         pass
+
+os.rename("data/celeba", "data/face")
