@@ -6,45 +6,157 @@
     <meta name="keywords" content="GAN2Shape Results">
     <meta name="description" content="">
     <title>GAN2Shape Results</title>
-    <link id="u-theme-google-font" rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i|Open+Sans:300,300i,400,400i,600,600i,700,700i,800,800i">
-    <link rel="stylesheet" href="nicepage.css" media="screen">
+    <!-- Load required Bootstrap and BootstrapVue CSS -->
+    <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+    <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+
+    <!-- Load Vue followed by BootstrapVue -->
+    <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+    <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
+
+    <!-- Load the following for BootstrapVueIcons support -->
+    <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue-icons.min.js"></script>
   </head>
   <body>
-    <h2>GAN2Shape Replication Results (Please wait page loading)</h2>
-    <h1>Projections with Ellipsoid prior</h1>
-
-    <object data="Car - Ellipsoid/plotly__im_0.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Car - Ellipsoid/plotly__im_5.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Cat - Ellipsoid/plotly__im_0.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Cat - Ellipsoid/plotly__im_1.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Face - Ellipsoid/plotly__im_0.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Face - Ellipsoid/plotly__im_1.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-
-    <h1>Projections with Smoothed Box prior</h1>
+  <h1>GAN2Shape Replication Results (Click to show)</h2>
     
-    <object data="Car - Smoothed box/plotly__im_0.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Car - Smoothed box/plotly__im_5.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Cat - Smoothed box/plotly__im_0.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
-    <object data="Cat - Smoothed box/plotly__im_1.html" style="height: 50vh; width: auto; align-content: center;"> 
-      Something went wrong while loading the interactive projections, please try changing your browser.
-    </object>
+<div id="app">
+
+  <div class="accordion" role="tablist">
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-1 variant="outline-primary">Car projections with Ellipsoid prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-1" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpenOne = true" @hidden="isCollapseOpenOne = false">
+      <b-card v-if="isCollapseOpenOne">
+        <object data="Car - Ellipsoid/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Car - Ellipsoid/plotly__im_4.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Car - Ellipsoid/plotly__im_5.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-2 variant="outline-primary">Car projections with Smoothed Box prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-2" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen2 = true" @hidden="isCollapseOpen2 = false">
+      <b-card v-if="isCollapseOpen2">
+        <object data="Car - Smoothed box/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Car - Smoothed box/plotly__im_4.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Car - Smoothed box/plotly__im_5.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-3 variant="outline-primary">Cat projections with Ellipsoid prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-3" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen3 = true" @hidden="isCollapseOpen3 = false">
+      <b-card v-if="isCollapseOpen3">
+        <object data="Cat - Ellipsoid/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Cat - Ellipsoid/plotly__im_1.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Cat - Ellipsoid/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-4 variant="outline-primary">Cat projections with Smoothed Box prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-4" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen4 = true" @hidden="isCollapseOpen4 = false">
+      <b-card v-if="isCollapseOpen4">
+        <object data="Cat - Smoothed box/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Cat - Smoothed box/plotly__im_1.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Cat - Smoothed box/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-5 variant="outline-primary">Face projections with Ellipsoid prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-5" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen5 = true" @hidden="isCollapseOpen5 = false">
+      <b-card v-if="isCollapseOpen5">
+        <object data="Face - Ellipsoid/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Face - Ellipsoid/plotly__im_1.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Face - Ellipsoid/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-6 variant="outline-primary">Face projections with Smoothed Box prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-6" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen6 = true" @hidden="isCollapseOpen6 = false">
+      <b-card v-if="isCollapseOpen6">
+        <object data="Face - Smoothed box/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Face - Smoothed box/plotly__im_1.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Face - Smoothed box/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+    <b-card-header header-tag="header" class="p-1" role="tab">
+      <b-button block v-b-toggle.collapse-7 variant="outline-primary">Projections with Confidence based prior</b-button>
+    </b-card-header>
+    <b-collapse id="collapse-7" visible accordion="my-accordion" role="tabpanel" class="mt-2" @show="isCollapseOpen7 = true" @hidden="isCollapseOpen7 = false">
+      <b-card v-if="isCollapseOpen7">
+        <object data="Face - Confidence/plotly__im_1.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Face - Confidence/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Car - Confidence/plotly__im_0.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+        <object data="Cat - Confidence/plotly__im_2.html" loading="lazy" style="height: 50vh; width: auto; align-content: center;"> 
+          Something went wrong while loading the interactive projections, please try changing your browser.
+        </object>
+      </b-card>
+    </b-collapse>
+  </div>
+</div>
+
+
+    <script>
+      new Vue({
+        el: '#app',
+        data() {
+          return {
+            isCollapseOpenOne: true,
+            isCollapseOpen2: false,
+            isCollapseOpen3: false,
+            isCollapseOpen4: false,
+            isCollapseOpen5: false,
+            isCollapseOpen6: false,
+            isCollapseOpen7: false,
+          }
+        }
+      })
+    </script>
   </body>
 </html>
