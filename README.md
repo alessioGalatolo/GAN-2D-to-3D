@@ -8,7 +8,7 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 | ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 1 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_1.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 4 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_4.gif) | ![Face 1 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_1.gif) | ![Face 1 - Confidence](docs/Face%20-%20Confidence/plotly__im_1.gif) |
 | ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) | ![Cat 2 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_2.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) | ![Car 5 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_5.gif) | ![Face 2 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_2.gif) | ![Face 2 - Confidence](docs/Face%20-%20Confidence/plotly__im_2.gif) |
 
-The results are also available interactively at [alessiogalatolo.github.io/GAN-2D-to-3D/](https://alessiogalatolo.github.io/GAN-2D-to-3D/).
+The results are also available interactively at TODO.
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
 ```
 sudo apt update
@@ -60,30 +60,3 @@ python evaluate_results.py
 ```
 # Acknowledgments
 Part of this code is borrowed from [Unsup3d](https://github.com/elliottwu/unsup3d), [StyleGAN2](https://github.com/rosinality/stylegan2-pytorch), [Semseg](https://github.com/hszhao/semseg) and [BiSeNet](https://github.com/zllrunning/face-parsing.PyTorch).
-
-# Todo-list
-- ~~Add saving of models/checkpoints~~
-- ~~Add support for batches:~~
-  - ~~Image batches (Right now we are training for 1 image at a time, inefficient)~~
-  - ~~Fix support for 100 projected samples of the same image (and implement batches for these too)~~
-- ~~Fix ellipsoid/mask_net~~
-- ~~Add proper logging~~
-- ~~Make good looking graphs~~
-- ~~Add 3D depth plots (maybe save pickles of tensors so we can decide how to visualize it later)~~
-- Add plots/anims for multiple viewpoints and light? 
-  (I think we need to construct a function which samples from an "interpolation" between two viewpoints and not randomly)
-- ~~Refactor code - there is currently a lot of unnecessary repetition~~
-- ~~Experiment with new priors (improve box + maybe something else?)?~~
-- Experiment with loss/regularization?
-- Training
-  - ~~LSUN Car (replication)~~
-  - LSUN Horse (replication)
-  - LSUN Bus (extension)
-  - LSUN Sheep (extension)
-  - Roboflow’s Fruit dataset (extension)  
-
-
-
->Roboflow’s Fruit dataset (extension)  
-
-Not sure we can do this (check stylegan is trained for this)
