@@ -31,7 +31,7 @@ conda activate 3D-GAN
 ```
 ```
 # Install neural renderer
-git clone https://github.com/daniilidis-group/neural_renderer.git
+git clone https://github.com/sharf91/neural_renderer.git
 cd neural_renderer
 python setup.py install
 ```
