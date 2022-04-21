@@ -1,5 +1,5 @@
 # Unsupervised 3D shape retrieval from pre-trained GANs
-Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
+Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape). We participated with this code in the [Machine Learning Reproducibility Challenge 2021](https://paperswithcode.com/rc2021) and our paper for accepted for publication at [ReScience C](https://rescience.github.io/read) journal, our report is also temporarily available in the [OpenReview forum](https://openreview.net/forum?id=B8mxkTzX2RY).
 
 ## Results
 | Cats (Ellipsoid) | Cats (Smoothed Box) | Cars (Ellipsoid) | Cars (Smoothed Box) | Faces (Ellipsoid) | Faces (Confidence) |
@@ -8,7 +8,7 @@ Replication of [GAN2Shape](https://github.com/XingangPan/GAN2Shape).
 | ![Cat 1 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_1.gif) | ![Cat 1 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_1.gif) | ![Car 4 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_4.gif) | ![Car 4 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_4.gif) | ![Face 1 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_1.gif) | ![Face 1 - Confidence](docs/Face%20-%20Confidence/plotly__im_1.gif) |
 | ![Cat 2 - Ellipsoid](docs/Cat%20-%20Ellipsoid/plotly__im_2.gif) | ![Cat 2 - Smoothed Box](docs/Cat%20-%20Smoothed%20box/plotly__im_2.gif) | ![Car 5 - Ellipsoid](docs/Car%20-%20Ellipsoid/plotly__im_5.gif) | ![Car 5 - Smoothed Box](docs/Car%20-%20Smoothed%20box/plotly__im_5.gif) | ![Face 2 - Ellipsoid](docs/Face%20-%20Ellipsoid/plotly__im_2.gif) | ![Face 2 - Confidence](docs/Face%20-%20Confidence/plotly__im_2.gif) |
 
-The results are also available interactively at <anonymized for review>.
+The results are also available interactively at [alessiogalatolo.github.io/GAN-2D-to-3D/](https://alessiogalatolo.github.io/GAN-2D-to-3D/).
 ## Install instructions for Ubuntu 18.04.6 LTS with CUDA 10+ compatible GPU
 ```
 sudo apt update
