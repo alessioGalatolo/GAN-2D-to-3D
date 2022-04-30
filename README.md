@@ -5,19 +5,20 @@ Install Visual Studio Community Edition 2017 (NOT 2022!). When installing, go to
 
 Reboot
 
-Go to C:\Users\<user>\anaconda3\envs\<your env>\Lib\site-packages\torch\include\c10\util and remove flat_hash_map.h and replace it with the one above
+Go to C:\Users\\\<user>\anaconda3\envs\\\<your env>\Lib\site-packages\torch\include\c10\util and remove flat_hash_map.h and replace it with [the one provided above](https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/nr-windows-instructions/flat_hash_map.h).
 
-Inside the project do:
+Inside the project folder do:
 ```sh
 git clone https://github.com/adambielski/neural_renderer.git
 ```
-(NOTE: this is a different repo from the original one
-go to neural_renderer/neural_renderer/cuda and replace rasterize_cuda_kernel.cu with the one above
+(NOTE: this is a different repo from the original one)
+
+go to neural_renderer/neural_renderer/cuda and replace rasterize_cuda_kernel.cu with [the one above](https://github.com/alessioGalatolo/GAN-2D-to-3D/blob/nr-windows-instructions/rasterize_cuda_kernel.cu)
 
 Copy these files: ```rc.exe rcdll.dll```
 From
 
-C:\Program Files (x86)\Windows Kits\8.x\bin\x86
+C:\Program Files (x86)\Windows Kits\8.x\bin\x86  (replace 8.x with your version, e.g. 8.1)
 
 To
 
